@@ -275,57 +275,6 @@
       color: rgba(255,255,255,0.4);
       margin-bottom: 28px;
     }
-    .type-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .type-item {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
-    }
-    .type-item:hover {
-      background: rgba(0,229,255,0.08);
-      border-color: rgba(0,229,255,0.2);
-      transform: translateY(-1px);
-    }
-    .type-item-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: #00e5ff;
-      box-shadow: 0 0 8px rgba(0,229,255,0.4);
-      flex-shrink: 0;
-    }
-    .type-item-info { flex: 1; }
-    .type-item-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.9);
-    }
-    .type-item-attrs {
-      font-size: 11px;
-      color: rgba(255,255,255,0.3);
-      font-family: 'JetBrains Mono', monospace;
-      margin-top: 2px;
-    }
-    .type-item-arrow {
-      color: rgba(255,255,255,0.2);
-      font-size: 18px;
-      transition: color 0.2s;
-    }
-    .type-item:hover .type-item-arrow { color: #00e5ff; }
-    .type-loading {
-      color: rgba(255,255,255,0.4);
-      font-size: 13px;
-    }
 
     /* ── トースト ── */
     .toast {
@@ -454,10 +403,67 @@
     <div class="type-picker">
       <div class="type-picker-icon">&#9673;</div>
       <h2>GeonicDB Monitor</h2>
-      <p>モニターするエンティティタイプを選択してください</p>
-      <div class="type-list" id="type-list">
-        <div class="type-loading">Loading entity types...</div>
-      </div>
+      <p>モニターするエンティティタイプを入力してください</p>
+      <form id="type-form" style="display:flex;gap:8px;margin-top:8px">
+        <input
+          id="type-input"
+          type="text"
+          placeholder="例: Sensor, Earthquake, Vehicle..."
+          autocomplete="off"
+          spellcheck="false"
+          style="
+            flex:1;
+            padding:12px 16px;
+            background:rgba(255,255,255,0.06);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:10px;
+            color:#e0f7fa;
+            font-size:14px;
+            font-family:'Inter',sans-serif;
+            outline:none;
+            transition:border-color 0.2s;
+          "
+          onfocus="this.style.borderColor='rgba(0,229,255,0.4)'"
+          onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
+        />
+        <button
+          type="submit"
+          style="
+            padding:12px 20px;
+            background:linear-gradient(135deg,#00e5ff 0%,#2979ff 100%);
+            border:none;
+            border-radius:10px;
+            color:#fff;
+            font-size:14px;
+            font-weight:600;
+            cursor:pointer;
+            transition:opacity 0.2s;
+            white-space:nowrap;
+          "
+          onmouseover="this.style.opacity='0.85'"
+          onmouseout="this.style.opacity='1'"
+        >Open</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="type-overlay hidden" id="error-overlay">
+    <div class="type-picker">
+      <div class="type-picker-icon" style="background:linear-gradient(135deg,#ff5252 0%,#d32f2f 100%);box-shadow:0 0 40px rgba(255,82,82,0.25)">&#9888;</div>
+      <h2 id="error-title">エンティティが見つかりません</h2>
+      <p id="error-detail"></p>
+      <a href="./" style="
+        display:inline-block;
+        margin-top:20px;
+        padding:10px 24px;
+        background:rgba(255,255,255,0.06);
+        border:1px solid rgba(255,255,255,0.12);
+        border-radius:10px;
+        color:#e0f7fa;
+        font-size:13px;
+        text-decoration:none;
+        transition:background 0.2s;
+      " onmouseover="this.style.background='rgba(0,229,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">トップに戻る</a>
     </div>
   </div>
 
@@ -484,80 +490,19 @@
     var params = new URLSearchParams(location.search);
     var ENTITY_TYPE = params.get('type') || null;
 
-    // タイプ未指定 → 選択画面を表示
+    // タイプ未指定 → 入力画面を表示
     if (!ENTITY_TYPE) {
       document.getElementById('type-overlay').classList.remove('hidden');
-      // タイプ一覧を取得して表示
-      var _db = new GeonicDB();
-      _db._dpopReady = (_db._dpopReady || Promise.resolve()).then(function() { _db._dpopKeyPair = null; });
-      _db._ensureToken().then(function(token) {
-        return fetch(ENV_GEONICDB_URL + '/ngsi-ld/v1/types', {
-          headers: { 'Authorization': 'Bearer ' + token, 'NGSILD-Tenant': ENV_GEONICDB_TENANT, 'Accept': 'application/json' }
-        }).then(function(r) { return r.json(); });
-      }).then(function(types) {
-        var list = document.getElementById('type-list');
-        list.innerHTML = '';
-        if (!types.length) {
-          list.innerHTML = '<div class="type-loading">No entity types found</div>';
-          return;
-        }
-        types.forEach(function(t) {
-          var item = document.createElement('div');
-          item.className = 'type-item';
-          var attrs = (t.attributeNames || []).join(', ');
-          item.innerHTML =
-            '<div class="type-item-dot"></div>' +
-            '<div class="type-item-info">' +
-              '<div class="type-item-name">' + t.typeName + '</div>' +
-              '<div class="type-item-attrs">' + attrs + '</div>' +
-            '</div>' +
-            '<div class="type-item-arrow">&rsaquo;</div>';
-          item.onclick = function() {
-            var typeName = t.typeName;
-            // ローディング表示
-            item.style.opacity = '0.5';
-            item.querySelector('.type-item-arrow').innerHTML = '&#8987;';
-            // temporal データがあるか自動判定
-            _db._ensureToken().then(function(token) {
-              return fetch(ENV_GEONICDB_URL + '/ngsi-ld/v1/temporal/entities?type=' + encodeURIComponent(typeName) + '&limit=1', {
-                headers: { 'Authorization': 'Bearer ' + token, 'NGSILD-Tenant': ENV_GEONICDB_TENANT, 'Accept': 'application/json' }
-              }).then(function(r) { return r.json(); });
-            }).then(function(result) {
-              var hasTemporal = Array.isArray(result) && result.length > 0;
-              location.href = '?type=' + encodeURIComponent(typeName) + '&temporal=' + hasTemporal;
-            }).catch(function() {
-              location.href = '?type=' + encodeURIComponent(typeName) + '&temporal=false';
-            });
-          };
-          list.appendChild(item);
-        });
-      }).catch(function() {
-        document.getElementById('type-list').innerHTML = '<div class="type-loading">Failed to load types</div>';
-      });
+      document.getElementById('type-form').onsubmit = function(e) {
+        e.preventDefault();
+        var val = document.getElementById('type-input').value.trim();
+        if (val) location.href = '?type=' + encodeURIComponent(val);
+      };
+      document.getElementById('type-input').focus();
     }
 
     var TEMPORAL = params.get('temporal') === 'true';
     var _waitingRedirect = false;
-    // temporal パラメータが明示されていない場合、自動判定してリダイレクト
-    if (ENTITY_TYPE && !params.has('temporal')) {
-      _waitingRedirect = true;
-      // リダイレクト中はオーバーレイ表示
-      var overlay = document.getElementById('type-overlay');
-      overlay.classList.remove('hidden');
-      document.getElementById('type-list').innerHTML = '<div class="type-loading">Loading ' + ENTITY_TYPE + '...</div>';
-      var _dbCheck = new GeonicDB();
-      _dbCheck._dpopReady = (_dbCheck._dpopReady || Promise.resolve()).then(function() { _dbCheck._dpopKeyPair = null; });
-      _dbCheck._ensureToken().then(function(token) {
-        return fetch(ENV_GEONICDB_URL + '/ngsi-ld/v1/temporal/entities?type=' + encodeURIComponent(ENTITY_TYPE) + '&limit=1', {
-          headers: { 'Authorization': 'Bearer ' + token, 'NGSILD-Tenant': ENV_GEONICDB_TENANT, 'Accept': 'application/json' }
-        }).then(function(r) { return r.json(); });
-      }).then(function(result) {
-        var hasTemporal = Array.isArray(result) && result.length > 0;
-        location.replace('?type=' + encodeURIComponent(ENTITY_TYPE) + '&temporal=' + hasTemporal);
-      }).catch(function() {
-        location.replace('?type=' + encodeURIComponent(ENTITY_TYPE) + '&temporal=false');
-      });
-    }
 
     if (!ENTITY_TYPE) ENTITY_TYPE = '__none__';
 
@@ -604,9 +549,6 @@
     // GeonicDB クライアント初期化
     // ============================================================
     var db = new GeonicDB();
-    db._dpopReady = (db._dpopReady || Promise.resolve()).then(function() {
-      db._dpopKeyPair = null;
-    });
 
     var origOpenWs = GeonicDB.prototype._openWebSocket;
     db._openWebSocket = function(token) {
@@ -1055,9 +997,24 @@
       ? (TEMPORAL ? fetchTemporalEntities(ENTITY_TYPE) : db.getEntities({ type: ENTITY_TYPE, limit: 1000 }))
       : null;
 
+    function showError(title, detail) {
+      document.getElementById('error-title').textContent = title;
+      document.getElementById('error-detail').textContent = detail;
+      document.getElementById('error-overlay').classList.remove('hidden');
+      document.querySelector('.header').style.display = 'none';
+      document.querySelector('.side-panel').style.display = 'none';
+    }
+
     dataPromise && dataPromise
       .then(function(result) {
         entities = result;
+        if (entities.length === 0) {
+          showError(
+            '"' + ENTITY_TYPE + '" が見つかりません',
+            'このエンティティタイプのデータが存在しないか、タイプ名が正しくありません。'
+          );
+          return;
+        }
         latestTime = new Date().toISOString();
         initFeed(entities);
         if (mapReady) { renderEntities(entities); }
@@ -1074,7 +1031,10 @@
       })
       .catch(function(err) {
         console.error('データ取得エラー:', err);
-        document.getElementById('stat-count').textContent = 'ERR';
+        showError(
+          'データの取得に失敗しました',
+          err.message || '接続エラーが発生しました。API キーやテナント設定を確認してください。'
+        );
       });
 
     // ============================================================
