@@ -620,18 +620,20 @@
       return entity;
     }
 
-    // Temporal API からデータ取得
+    // Temporal API からデータ取得（SDK の _request 経由で DPoP 対応）
     function fetchTemporalEntities(type) {
-      return db._ensureToken().then(function(token) {
-        return fetch(ENV_GEONICDB_URL + '/ngsi-ld/v1/temporal/entities?type=' + encodeURIComponent(type) + '&limit=1000', {
-          headers: { 'Authorization': 'Bearer ' + token, 'NGSILD-Tenant': ENV_GEONICDB_TENANT, 'Accept': 'application/json' }
-        }).then(function(r) { return r.json(); });
-      }).then(function(rawEntities) {
-        // 生データを保持
-        rawEntities.forEach(function(te) { temporalRaw[te.id] = te; });
-        // フラット化
-        return rawEntities.map(flattenTemporal);
-      });
+      return db._request('GET', '/ngsi-ld/v1/temporal/entities?type=' + encodeURIComponent(type) + '&limit=1000')
+        .then(function(res) {
+          if (!res.ok) return res.json().then(function(e) { throw new Error(e.detail || 'Temporal query failed'); });
+          return res.json();
+        })
+        .then(function(rawEntities) {
+          if (!Array.isArray(rawEntities)) rawEntities = [];
+          // 生データを保持
+          rawEntities.forEach(function(te) { temporalRaw[te.id] = te; });
+          // フラット化
+          return rawEntities.map(flattenTemporal);
+        });
     }
 
     // SVG スパークラインを生成
