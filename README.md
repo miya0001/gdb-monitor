@@ -43,23 +43,16 @@ geonic config set service <your-tenant-name>
 ```bash
 geonic me api-keys create \
   --name "monitor-app" \
-  --scopes read:entities,read:subscriptions \
-  --dpop-required
+  --scopes read:entities \
+  --dpop-required \
+  --origins "https://your-app.vercel.app"
 ```
 
-`--dpop-required` を付けることで、API キーに DPoP (Demonstration of Proof-of-Possession) トークンバインディングが要求されます。SDK がブラウザ側で自動的に DPoP Proof を生成するため、万が一 API キーが漏洩しても第三者は利用できません。
+- `--scopes read:entities` — エンティティの読み取り権限のみ（WebSocket 購読もこのスコープで動作します）
+- `--dpop-required` — DPoP (Demonstration of Proof-of-Possession) トークンバインディングを有効化。SDK がブラウザ側で自動的に DPoP Proof を生成するため、万が一 API キーが漏洩しても第三者は利用できません
+- `--origins` — API キーの利用を許可するオリジン。デプロイ先のドメインを指定してください。ローカル開発時は `"http://localhost:8080"` を指定します
 
 レスポンスに含まれる `key` の値を控えておいてください（`gdb_` で始まる文字列です）。
-
-> **Note:** 本番環境では `--origins` オプションでデプロイ先のドメインを制限してください。
->
-> ```bash
-> geonic me api-keys create \
->   --name "monitor-app" \
->   --scopes read:entities,read:subscriptions \
->   --dpop-required \
->   --origins "https://your-app.vercel.app"
-> ```
 
 ### 5. サンプルデータの作成（オプション）
 
