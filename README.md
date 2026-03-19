@@ -84,18 +84,16 @@ geonic entities create '{
 
 | 変数名 | 必須 | 説明 |
 |--------|------|------|
-| `GEONICDB_URL` | Yes | GeonicDB サーバーの URL（例: `https://geonicdb.geolonia.com`） |
-| `GEONICDB_API_KEY` | Yes | 手順 4 で発行した API キー |
-| `GEONICDB_TENANT` | Yes | テナント名 |
-| `GEOLONIA_API_KEY` | No | Geolonia Maps の API キー |
+| `VITE_GEONICDB_URL` | Yes | GeonicDB サーバーの URL（例: `https://geonicdb.geolonia.com`） |
+| `VITE_GEONICDB_API_KEY` | Yes | 手順 4 で発行した API キー |
+| `VITE_GEONICDB_TENANT` | Yes | テナント名 |
+| `VITE_GEOLONIA_API_KEY` | No | Geolonia Maps の API キー |
 
 ### Vercel へのデプロイ
 
-1. このリポジトリを GitHub にプッシュし、Vercel にインポート
+1. このリポジトリを GitHub にプッシュし、Vercel にインポート（フレームワーク: Vite が自動検出されます）
 2. Vercel のプロジェクト設定で上記の環境変数を設定
 3. デプロイ
-
-ビルド時に `build.sh` が実行され、環境変数が HTML に注入されます。
 
 ### ローカルで確認
 
@@ -103,8 +101,10 @@ geonic entities create '{
 cp .env.example .env
 # .env を編集して実際の値を設定
 
-source .env && bash build.sh
-npx serve dist
+npm install
+npm run dev       # 開発サーバー
+npm run build     # プロダクションビルド
+npm run preview   # ビルド結果のプレビュー
 ```
 
 ## 使い方

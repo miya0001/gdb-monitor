@@ -2,5 +2,13 @@
   "name": "geonicdb-monitor",
   "version": "1.0.0",
   "private": true,
-  "description": "GeonicDB realtime entity monitor with Geolonia Maps"
+  "description": "GeonicDB realtime entity monitor with Geolonia Maps",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.0.1"
+  }
 }
