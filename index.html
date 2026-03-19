@@ -501,33 +501,13 @@
       document.getElementById('type-input').focus();
     }
 
-    var TEMPORAL = params.get('temporal') === 'true';
-    var _waitingRedirect = false;
-
-    // temporal パラメータ未指定 → SDK 経由で自動判定してリダイレクト
-    if (ENTITY_TYPE && !params.has('temporal')) {
-      _waitingRedirect = true;
-      // リダイレクト中はヘッダーとパネルを非表示
-      document.querySelector('.header').style.display = 'none';
-      document.querySelector('.side-panel').style.display = 'none';
-      var _dbCheck = new GeonicDB();
-      _dbCheck._request('GET', '/ngsi-ld/v1/temporal/entities?type=' + encodeURIComponent(ENTITY_TYPE) + '&limit=1')
-        .then(function(res) { return res.ok ? res.json() : []; })
-        .then(function(result) {
-          var hasTemporal = Array.isArray(result) && result.length > 0;
-          location.replace('?type=' + encodeURIComponent(ENTITY_TYPE) + '&temporal=' + hasTemporal);
-        })
-        .catch(function() {
-          location.replace('?type=' + encodeURIComponent(ENTITY_TYPE) + '&temporal=false');
-        });
-    }
+    var TEMPORAL = false;
 
     if (!ENTITY_TYPE) ENTITY_TYPE = '__none__';
 
-    var titleSuffix = TEMPORAL ? ' (Temporal)' : '';
-    document.getElementById('app-title').textContent = ENTITY_TYPE === '__none__' ? 'GeonicDB Monitor' : ENTITY_TYPE + titleSuffix;
+    document.getElementById('app-title').textContent = ENTITY_TYPE === '__none__' ? 'GeonicDB Monitor' : ENTITY_TYPE;
     document.getElementById('panel-title').textContent = ENTITY_TYPE === '__none__' ? '-' : ENTITY_TYPE;
-    document.title = (ENTITY_TYPE === '__none__' ? '' : ENTITY_TYPE + titleSuffix + ' — ') + 'GeonicDB Monitor';
+    document.title = (ENTITY_TYPE === '__none__' ? '' : ENTITY_TYPE + ' — ') + 'GeonicDB Monitor';
     if (ENTITY_TYPE === '__none__') {
       document.querySelector('.header').style.display = 'none';
       document.querySelector('.side-panel').style.display = 'none';
@@ -1013,8 +993,19 @@
       document.getElementById('stat-latest').textContent = '--:--';
     }
 
-    var dataPromise = (ENTITY_TYPE !== '__none__' && !_waitingRedirect)
-      ? (TEMPORAL ? fetchTemporalEntities(ENTITY_TYPE) : db.getEntities({ type: ENTITY_TYPE, limit: 1000 }))
+    // temporal を先に試し、データがあればそのまま使う。なければ通常 API にフォールバック
+    var dataPromise = (ENTITY_TYPE !== '__none__')
+      ? fetchTemporalEntities(ENTITY_TYPE).then(function(result) {
+          if (result.length > 0) {
+            TEMPORAL = true;
+            document.getElementById('app-title').textContent = ENTITY_TYPE + ' (Temporal)';
+            document.title = ENTITY_TYPE + ' (Temporal) — GeonicDB Monitor';
+            return result;
+          }
+          return db.getEntities({ type: ENTITY_TYPE, limit: 1000 });
+        }).catch(function() {
+          return db.getEntities({ type: ENTITY_TYPE, limit: 1000 });
+        })
       : null;
 
     function showError(title, detail) {
@@ -1114,7 +1105,7 @@
     db.on('entityCreated', function(msg) { handleEntity(msg, true); });
     db.on('entityUpdated', function(msg) { handleEntity(msg, false); });
 
-    if (ENTITY_TYPE !== '__none__' && !_waitingRedirect) {
+    if (ENTITY_TYPE !== '__none__') {
       db.subscribe({ entityTypes: [ENTITY_TYPE] });
       db.connect();
     }
