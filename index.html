@@ -518,7 +518,7 @@
     // ============================================================
     var map = new geolonia.Map({
       container: 'map',
-      style: 'geolonia/basic-v1',
+      style: 'geolonia/midnight',
       center: [139.7414, 35.6581],
       zoom: 10,
       minZoom: 2,
@@ -850,8 +850,8 @@
           source: 'entities',
           paint: {
             'circle-radius': ['case', ['==', ['get', 'selected'], 1], 32, 24],
-            'circle-color': ['case', ['==', ['get', 'selected'], 1], '#e53935', '#1565c0'],
-            'circle-opacity': ['case', ['==', ['get', 'selected'], 1], 0.15, 0.1],
+            'circle-color': ['case', ['==', ['get', 'selected'], 1], '#ff1744', '#00b0ff'],
+            'circle-opacity': ['case', ['==', ['get', 'selected'], 1], 0.15, 0.08],
             'circle-blur': 1
           }
         });
@@ -861,7 +861,7 @@
           source: 'entities',
           paint: {
             'circle-radius': ['case', ['==', ['get', 'selected'], 1], 18, 14],
-            'circle-color': ['case', ['==', ['get', 'selected'], 1], '#e53935', '#1565c0'],
+            'circle-color': ['case', ['==', ['get', 'selected'], 1], '#ff1744', '#00b0ff'],
             'circle-opacity': ['case', ['==', ['get', 'selected'], 1], 0.2, 0.12]
           }
         });
@@ -871,10 +871,10 @@
           source: 'entities',
           paint: {
             'circle-radius': ['case', ['==', ['get', 'selected'], 1], 8, 6],
-            'circle-color': ['case', ['==', ['get', 'selected'], 1], '#e53935', '#1976d2'],
+            'circle-color': ['case', ['==', ['get', 'selected'], 1], '#ff5252', '#00e5ff'],
             'circle-opacity': 0.9,
             'circle-stroke-width': 1.5,
-            'circle-stroke-color': '#fff'
+            'circle-stroke-color': ['case', ['==', ['get', 'selected'], 1], 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)']
           }
         });
         map.addLayer({
@@ -890,8 +890,8 @@
             'text-max-width': 10
           },
           paint: {
-            'text-color': '#333',
-            'text-halo-color': '#fff',
+            'text-color': 'rgba(224,247,250,0.8)',
+            'text-halo-color': 'rgba(6,10,23,0.85)',
             'text-halo-width': 1.5
           }
         });
@@ -973,16 +973,10 @@
     function onMapReady() {
       mapReady = true;
 
-      // 白地図化: 不要なレイヤーを非表示・簡素化
-      var layers = map.getStyle().layers || [];
-      var keepPatterns = /^(background|water|landcover|boundary|place-|entity-)/;
-      layers.forEach(function(layer) {
-        if (!keepPatterns.test(layer.id)) {
-          try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch(e) {}
-        }
-      });
-      // 背景色を白に
-      try { map.setPaintProperty('background', 'background-color', '#f5f5f5'); } catch(e) {}
+      // 道路番号ラベルを非表示
+      if (map.getLayer('road_shield')) {
+        map.setLayoutProperty('road_shield', 'visibility', 'none');
+      }
 
       map.on('click', 'entity-points', showPopup);
       map.on('mouseenter', 'entity-points', function() { map.getCanvas().style.cursor = 'pointer'; });
