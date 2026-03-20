@@ -516,55 +516,13 @@
     // ============================================================
     // 地図初期化
     // ============================================================
-    // 白地図スタイル（軽量・高速）
-    var WHITE_MAP_STYLE = {
-      version: 8,
-      name: 'White Map',
-      sources: {
-        openmaptiles: {
-          type: 'vector',
-          url: 'https://tileserver.geolonia.com/v1/tiles'
-        }
-      },
-      glyphs: 'https://glyphs.geolonia.com/fonts/{fontstack}/{range}.pbf',
-      layers: [
-        { id: 'background', type: 'background', paint: { 'background-color': '#f8f8f8' } },
-        { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
-          paint: { 'fill-color': '#d4e6f1' } },
-        { id: 'landcover', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
-          paint: { 'fill-color': '#eef5ec', 'fill-opacity': 0.5 } },
-        { id: 'boundary', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
-          filter: ['==', 'admin_level', 2],
-          paint: { 'line-color': '#ccc', 'line-width': 0.8 } },
-        { id: 'boundary-sub', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
-          filter: ['in', 'admin_level', 4, 6],
-          paint: { 'line-color': '#ddd', 'line-width': 0.4, 'line-dasharray': [3, 2] } },
-        { id: 'road-major', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
-          filter: ['in', 'class', 'motorway', 'trunk', 'primary'],
-          paint: { 'line-color': '#e0e0e0', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 12, 2] } },
-        { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
-          filter: ['in', 'class', 'secondary', 'tertiary'],
-          minzoom: 9,
-          paint: { 'line-color': '#eee', 'line-width': 1 } },
-        { id: 'place-label', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
-          filter: ['in', 'class', 'city', 'town'],
-          layout: {
-            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 5, 11, 12, 14],
-            'text-font': ['Noto Sans CJK JP Regular']
-          },
-          paint: { 'text-color': '#888', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }
-      ]
-    };
-
     var map = new geolonia.Map({
       container: 'map',
-      style: WHITE_MAP_STYLE,
+      style: 'geolonia/basic-v1',
       center: [139.7414, 35.6581],
       zoom: 10,
       minZoom: 2,
       maxZoom: 16,
-      attributionControl: true,
       renderWorldCopies: false
     });
 
@@ -1014,6 +972,18 @@
 
     function onMapReady() {
       mapReady = true;
+
+      // 白地図化: 不要なレイヤーを非表示・簡素化
+      var layers = map.getStyle().layers || [];
+      var keepPatterns = /^(background|water|landcover|boundary|place-|entity-)/;
+      layers.forEach(function(layer) {
+        if (!keepPatterns.test(layer.id)) {
+          try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch(e) {}
+        }
+      });
+      // 背景色を白に
+      try { map.setPaintProperty('background', 'background-color', '#f5f5f5'); } catch(e) {}
+
       map.on('click', 'entity-points', showPopup);
       map.on('mouseenter', 'entity-points', function() { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', 'entity-points', function() { map.getCanvas().style.cursor = ''; });
