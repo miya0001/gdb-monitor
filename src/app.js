@@ -1,15 +1,28 @@
+/**
+ * app.js — アプリケーション本体
+ *
+ * GeonicDB SDK を使ったリアルタイムモニターの実装。
+ * 以下の GeonicDB 機能を利用している:
+ *
+ * - NGSI-LD エンティティの取得（REST API）
+ * - Temporal API による時系列データの取得
+ * - WebSocket によるリアルタイムのエンティティ作成・更新通知
+ * - Bearer JWT 認証とトークンの自動リフレッシュ
+ */
+
 import { storeAuth, clearAuth } from './auth.js';
 
-// ============================================================
-// アプリケーション初期化（認証後に呼び出し）
-// ============================================================
 export function initApp(auth) {
 
-// ── 設定 ──
+// ============================================================
+// エンティティタイプの選択
+// ============================================================
+// URL の ?type= パラメータでモニター対象のエンティティタイプを指定する。
+// 未指定の場合はタイプ選択画面を表示し、NGSI-LD /types API から
+// 登録済みタイプの一覧を取得してプルダウンに表示する。
 var params = new URLSearchParams(location.search);
 var ENTITY_TYPE = params.get('type') || null;
 
-// タイプ未指定 → 選択画面を表示
 if (!ENTITY_TYPE) {
   document.getElementById('type-overlay').classList.remove('hidden');
   document.getElementById('type-form').onsubmit = function(e) {
@@ -17,7 +30,7 @@ if (!ENTITY_TYPE) {
     var val = document.getElementById('type-input').value;
     if (val) location.href = '?type=' + encodeURIComponent(val);
   };
-  // エンティティタイプ一覧を取得してプルダウンに設定
+  // NGSI-LD /types API でエンティティタイプ一覧を取得
   var select = document.getElementById('type-input');
   fetch(auth.url + '/ngsi-ld/v1/types', {
     headers: { 'Authorization': 'Bearer ' + auth.accessToken }
@@ -26,6 +39,7 @@ if (!ENTITY_TYPE) {
   .then(function(types) {
     select.innerHTML = '<option value="" disabled selected>エンティティタイプを選択...</option>';
     types.forEach(function(t) {
+      // typeName があればそれを使い、なければ URN の末尾を短縮名とする
       var name = t.typeName || t.id.split(':').pop();
       var opt = document.createElement('option');
       opt.value = name;
@@ -38,10 +52,12 @@ if (!ENTITY_TYPE) {
   });
 }
 
+// Temporal API でデータが取得できたかどうかのフラグ
 var TEMPORAL = false;
 
 if (!ENTITY_TYPE) ENTITY_TYPE = '__none__';
 
+// UI のタイトル表示を更新
 document.getElementById('app-title').textContent = ENTITY_TYPE === '__none__' ? 'GeonicDB Monitor' : ENTITY_TYPE;
 document.getElementById('panel-title').textContent = ENTITY_TYPE === '__none__' ? '-' : ENTITY_TYPE;
 document.title = (ENTITY_TYPE === '__none__' ? '' : ENTITY_TYPE + ' — ') + 'GeonicDB Monitor';
@@ -50,7 +66,9 @@ if (ENTITY_TYPE === '__none__') {
   document.querySelector('.side-panel').style.display = 'none';
 }
 
-// ── 地図初期化 ──
+// ============================================================
+// Geolonia Maps 初期化
+// ============================================================
 var map = new geolonia.Map({
   container: 'map',
   style: 'geolonia/midnight',
@@ -61,6 +79,7 @@ var map = new geolonia.Map({
   renderWorldCopies: false
 });
 
+// ユーザーが手動でズームした場合、そのレベルを記憶して flyTo で使う
 var userZoom = null;
 map.on('zoomend', function() {
   if (!map.isMoving || !map._zooming) {
@@ -74,33 +93,46 @@ function getFlyZoom(defaultZoom) {
   return userZoom !== null ? userZoom : defaultZoom;
 }
 
-// ── GeonicDB クライアント初期化 ──
+// ============================================================
+// GeonicDB クライアント初期化
+// ============================================================
+// GeonicDB SDK のインスタンスを作成し、Bearer JWT トークンをセットする。
+// SDK はデフォルトで DPoP (Proof of Work) 認証を使うが、
+// ログイン API で取得した Bearer トークンを直接セットすることで DPoP をスキップできる。
 var db = new GeonicDB({
   baseUrl: auth.url,
   tenant: auth.tenant
 });
-// SDK ネイティブの Bearer JWT サポートを利用
+
+// Bearer JWT トークンを直接セット（DPoP フローをスキップ）
 db._token = auth.accessToken;
 db._tokenExpiry = Date.now() + 3500 * 1000;
 db._tokenType = 'Bearer';
-db._refreshToken = auth.refreshToken;
+db._refreshToken = auth.refreshToken;   // SDK がトークン期限切れ時に自動リフレッシュに使用
 
-// トークン更新時に localStorage を同期
+// SDK の _ensureToken をラップして、トークン更新時に localStorage と同期する。
+// SDK は内部で /auth/refresh を呼んでトークンをローテーションするため、
+// 新しいトークンをアプリ側でも保存しておく必要がある。
 var _origEnsureToken = GeonicDB.prototype._ensureToken.bind(db);
 db._ensureToken = function() {
   return _origEnsureToken().then(function(token) {
+    // リフレッシュ後の新しいトークンを localStorage に同期
     auth.accessToken = db._token;
     auth.refreshToken = db._refreshToken;
     storeAuth(auth);
     return token;
   }).catch(function(err) {
+    // リフレッシュ失敗 → セッション切れとしてログイン画面に戻す
     clearAuth();
     location.href = location.pathname;
     throw err;
   });
 };
 
-// Bearer JWT で WebSocket 接続（SDK デフォルトの DPoP PoW 待ちをスキップ）
+// ── WebSocket 接続のカスタマイズ ──
+// SDK デフォルトの connect() は DPoP + Proof of Work で WebSocket に接続するが、
+// Bearer JWT を WebSocket サブプロトコルとして渡すことで PoW の待ち時間をスキップする。
+// 参考: RFC 6455 のサブプロトコルを利用した認証パターン
 db.connect = function() {
   var self = this;
   self._wsIntentionalClose = false;
@@ -108,16 +140,19 @@ db.connect = function() {
   return self._ensureToken().then(function(token) {
     return self._discoverWsEndpoint().then(function(endpoint) {
       return new Promise(function(resolve, reject) {
+        // テナント指定がある場合のみ tenant パラメータを付与
         var wsUrl = endpoint;
         if (self._tenant) {
           wsUrl += (endpoint.indexOf('?') === -1 ? '?' : '&') +
             'tenant=' + encodeURIComponent(self._tenant);
         }
+        // サブプロトコルとして ['access_token', <JWT>] を渡す
         var ws = new WebSocket(wsUrl, ['access_token', token]);
         self._ws = ws;
         ws.onopen = function() {
           if (self._ws !== ws) return;
           self._reconnectAttempts = 0;
+          // 事前に設定した subscribe 条件を WebSocket 接続時に送信
           if (self._subscription) ws.send(JSON.stringify(self._subscription));
           self._emit('open');
           self._emit('connected');
@@ -129,6 +164,7 @@ db.connect = function() {
           try { msg = JSON.parse(event.data); } catch (e) { return; }
           if (msg.type === 'pong') return;
           if (msg.type === 'error') { self._emit('error', new Error(msg.message)); return; }
+          // entityCreated / entityUpdated などのイベントをアプリに通知
           self._emit(msg.type, msg);
           self._emit('message', msg);
         };
@@ -138,7 +174,7 @@ db.connect = function() {
           if (self._wsIntentionalClose) { self._emit('close', event); return; }
           self._emit('close', event);
           self._emit('disconnected');
-          self._reconnect();
+          self._reconnect();   // 自動再接続（エクスポネンシャルバックオフ）
         };
         ws.onerror = function(err) {
           if (self._ws !== ws) return;
@@ -152,10 +188,21 @@ db.connect = function() {
   });
 };
 
-var entities = [];
-var temporalRaw = {};
+// ============================================================
+// エンティティデータの管理
+// ============================================================
+var entities = [];       // 現在のエンティティ一覧（REST API + WebSocket で更新）
+var temporalRaw = {};    // Temporal API の生レスポンスを保持（ポップアップのスパークライン表示用）
 
-// ── Temporal ヘルパー ──
+// ── Temporal API ──
+// NGSI-LD Temporal API は、エンティティの属性値の時系列データを返す。
+// 各属性が配列形式（[{value, observedAt}, ...]）になっており、
+// 通常のエンティティ形式に変換（フラット化）して地図表示に使う。
+
+/**
+ * Temporal エンティティを通常のエンティティ形式にフラット化する。
+ * 配列の先頭が最新値（API は降順で返す）。
+ */
 function flattenTemporal(te) {
   var entity = { id: te.id, type: te.type };
   Object.keys(te).forEach(function(key) {
@@ -173,6 +220,10 @@ function flattenTemporal(te) {
   return entity;
 }
 
+/**
+ * NGSI-LD Temporal API からエンティティの時系列データを取得する。
+ * SDK の _request() を使うことで認証ヘッダーが自動付与される。
+ */
 function fetchTemporalEntities(type) {
   return db._request('GET', '/ngsi-ld/v1/temporal/entities?type=' + encodeURIComponent(type) + '&limit=1000')
     .then(function(res) {
@@ -181,12 +232,18 @@ function fetchTemporalEntities(type) {
     })
     .then(function(rawEntities) {
       if (!Array.isArray(rawEntities)) rawEntities = [];
+      // 生データを保持（ポップアップでスパークラインを描画するため）
       rawEntities.forEach(function(te) { temporalRaw[te.id] = te; });
       return rawEntities.map(flattenTemporal);
     });
 }
 
-// ── SVG スパークライン ──
+// ============================================================
+// SVG スパークライン生成
+// ============================================================
+// Temporal データのポップアップ内に表示するミニ折れ線グラフ。
+// 外部ライブラリを使わず、SVG を直接組み立てる。
+
 function buildSparkline(dataPoints, color) {
   if (!dataPoints || dataPoints.length < 2) return '';
   var sorted = dataPoints.slice().sort(function(a, b) {
@@ -222,7 +279,11 @@ function buildSparkline(dataPoints, color) {
     '</svg>';
 }
 
-// ── ユーティリティ ──
+// ============================================================
+// NGSI-LD エンティティのユーティリティ
+// ============================================================
+
+/** ISO 8601 文字列を HH:MM:SS 形式に変換 */
 function formatTime(isoString) {
   var d = new Date(isoString);
   return String(d.getHours()).padStart(2, '0') + ':' +
@@ -230,6 +291,7 @@ function formatTime(isoString) {
     String(d.getSeconds()).padStart(2, '0');
 }
 
+/** 画面右下にトースト通知を表示 */
 function showToast(message) {
   var toast = document.getElementById('toast');
   toast.textContent = message;
@@ -237,12 +299,22 @@ function showToast(message) {
   setTimeout(function() { toast.classList.remove('show'); }, 3500);
 }
 
+/**
+ * エンティティの表示名を取得する。
+ * NGSI-LD エンティティの name 属性、なければ ID の末尾を使う。
+ */
 function getEntityName(e) {
   if (e.name && e.name.value) return e.name.value;
   if (e.epicenter && e.epicenter.value) return e.epicenter.value;
   return e.id.split(':').pop();
 }
 
+/**
+ * エンティティから GeoProperty を検索する。
+ * NGSI-LD では位置情報は GeoProperty 型で表現される。
+ * よく使われる属性名（location, position, geo 等）を優先的にチェックし、
+ * 見つからなければ全属性を走査する。
+ */
 function findGeoProperty(e) {
   var geoKeys = ['location', 'position', 'geo', 'coordinates', 'place'];
   for (var i = 0; i < geoKeys.length; i++) {
@@ -256,6 +328,10 @@ function findGeoProperty(e) {
   return null;
 }
 
+/**
+ * エンティティのポップアップに表示するプロパティ一覧を取得する。
+ * GeoProperty やメタ属性（id, type, @context）は除外する。
+ */
 function getDisplayProperties(e) {
   var skip = ['id', 'type', '@context', 'location', 'position', 'geo', 'coordinates', 'place'];
   var props = [];
@@ -271,9 +347,13 @@ function getDisplayProperties(e) {
   return props;
 }
 
-// ── ライブフィード ──
+// ============================================================
+// ライブフィード（サイドパネル）
+// ============================================================
+
 var feedList = document.getElementById('feed-list');
 
+/** WebSocket から受信したエンティティをフィードに追加（最新が上、最大50件） */
 function addFeedItem(entity, isNew) {
   var name = getEntityName(entity);
   var time = formatTime(new Date().toISOString());
@@ -301,6 +381,7 @@ function addFeedItem(entity, isNew) {
   setTimeout(function() { item.classList.remove('new'); }, 2000);
 }
 
+/** 初期データ（REST API から取得）でフィードを初期化（直近20件を表示） */
 function initFeed(list) {
   feedList.innerHTML = '';
   list.slice(-20).reverse().forEach(function(e) {
@@ -328,9 +409,17 @@ function initFeed(list) {
   });
 }
 
-// ── GeoJSON ──
+// ============================================================
+// GeoJSON 変換と地図上の選択管理
+// ============================================================
+
 var selectedEntityId = null;
 
+/**
+ * NGSI-LD エンティティの配列を GeoJSON FeatureCollection に変換する。
+ * 各 Feature の geometry には GeoProperty の値をそのまま使用する
+ * （NGSI-LD の GeoProperty は GeoJSON 形式で格納されている）。
+ */
 function buildGeoJSON(list) {
   return {
     type: 'FeatureCollection',
@@ -346,6 +435,7 @@ function buildGeoJSON(list) {
   };
 }
 
+/** 地図上のエンティティを選択（ハイライト + フィードのスクロール） */
 function selectEntity(id) {
   selectedEntityId = id;
   if (map.getSource('entities')) {
@@ -362,7 +452,10 @@ function selectEntity(id) {
   }
 }
 
-// ── 統計 ──
+// ============================================================
+// 統計表示
+// ============================================================
+
 var latestTime = null;
 
 function updateStats(list) {
@@ -371,14 +464,22 @@ function updateStats(list) {
     latestTime ? formatTime(latestTime) : '--:--';
 }
 
-// ── レイヤー描画 ──
+// ============================================================
+// 地図レイヤー描画
+// ============================================================
+// MapLibre GL の data-driven styling を使い、選択状態に応じて
+// ポイントの色・サイズを動的に切り替えている。
+
 function renderEntities(list) {
   var geojson = buildGeoJSON(list);
   if (map.getSource('entities')) {
+    // ソースが既にある場合はデータのみ更新
     map.getSource('entities').setData(geojson);
   } else {
+    // 初回はソースとレイヤーを作成
     map.addSource('entities', { type: 'geojson', data: geojson });
 
+    // グローレイヤー（背景のぼかし円）
     map.addLayer({
       id: 'entity-glow',
       type: 'circle',
@@ -390,6 +491,7 @@ function renderEntities(list) {
         'circle-blur': 1
       }
     });
+    // パルスレイヤー（中間の円）
     map.addLayer({
       id: 'entity-pulse',
       type: 'circle',
@@ -400,6 +502,7 @@ function renderEntities(list) {
         'circle-opacity': ['case', ['==', ['get', 'selected'], 1], 0.2, 0.12]
       }
     });
+    // ポイントレイヤー（メインの円）
     map.addLayer({
       id: 'entity-points',
       type: 'circle',
@@ -412,6 +515,7 @@ function renderEntities(list) {
         'circle-stroke-color': ['case', ['==', ['get', 'selected'], 1], 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)']
       }
     });
+    // ラベルレイヤー（エンティティ名）
     map.addLayer({
       id: 'entity-labels',
       type: 'symbol',
@@ -434,12 +538,20 @@ function renderEntities(list) {
   updateStats(list);
 }
 
-// ── ポップアップ ──
+// ============================================================
+// ポップアップ
+// ============================================================
+
 var popup = new geolonia.Popup({ offset: 15, closeButton: true, closeOnClick: false, maxWidth: '420px' });
 var sparkColors = ['#00e5ff', '#76ff03', '#ffab00', '#ff4081', '#7c4dff', '#00e676'];
 
 popup.on('close', function() { selectEntity(null); });
 
+/**
+ * エンティティの詳細ポップアップを表示する。
+ * Temporal データがある場合はスパークライン（時系列グラフ）を表示し、
+ * 通常データの場合はプロパティのキー・バリュー一覧を表示する。
+ */
 function openPopupForEntity(entityId) {
   var entity = entities.find(function(e) { return e.id === entityId; });
   if (!entity) return;
@@ -450,6 +562,7 @@ function openPopupForEntity(entityId) {
   var contentHtml = '';
 
   if (TEMPORAL && temporalRaw[entityId]) {
+    // Temporal モード: 各属性の時系列データをスパークラインで表示
     var raw = temporalRaw[entityId];
     var skip = ['id', 'type', '@context', 'location', 'position', 'geo', 'name'];
     var ci = 0;
@@ -469,6 +582,7 @@ function openPopupForEntity(entityId) {
         '</div>';
     });
   } else {
+    // 通常モード: プロパティのキー・バリュー一覧
     getDisplayProperties(entity).forEach(function(prop) {
       var unit = prop.unit ? ' <span style="color:rgba(255,255,255,0.3)">' + prop.unit + '</span>' : '';
       var valStr = String(prop.value);
@@ -495,7 +609,10 @@ function showPopup(ev) {
   openPopupForEntity(f.properties.id);
 }
 
-// ── マップ準備 ──
+// ============================================================
+// マップ準備完了ハンドラ
+// ============================================================
+
 var mapReady = false;
 var pendingRender = null;
 
@@ -507,6 +624,7 @@ function onMapReady() {
   map.on('click', 'entity-points', showPopup);
   map.on('mouseenter', 'entity-points', function() { map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', 'entity-points', function() { map.getCanvas().style.cursor = ''; });
+  // データ取得が地図ロードより先に完了していた場合、ここで描画する
   if (pendingRender) {
     renderEntities(pendingRender);
     pendingRender = null;
@@ -515,7 +633,13 @@ function onMapReady() {
 map.on('load', onMapReady);
 map.on('style.load', function() { if (!mapReady) onMapReady(); });
 
-// ── データ取得 ──
+// ============================================================
+// データ取得
+// ============================================================
+// まず Temporal API を試し、時系列データがあればそれを使う。
+// なければ通常の NGSI-LD entities API にフォールバックする。
+// SDK の db.getEntities() は内部で認証ヘッダーを自動付与する。
+
 if (ENTITY_TYPE === '__none__') {
   document.getElementById('stat-count').textContent = '-';
   document.getElementById('stat-latest').textContent = '--:--';
@@ -529,6 +653,7 @@ var dataPromise = (ENTITY_TYPE !== '__none__')
         document.title = ENTITY_TYPE + ' (Temporal) — GeonicDB Monitor';
         return result;
       }
+      // Temporal データがなければ通常 API にフォールバック
       return db.getEntities({ type: ENTITY_TYPE, limit: 1000 });
     }).catch(function() {
       return db.getEntities({ type: ENTITY_TYPE, limit: 1000 });
@@ -557,6 +682,7 @@ dataPromise && dataPromise
     initFeed(entities);
     if (mapReady) { renderEntities(entities); }
     else { pendingRender = entities; updateStats(entities); }
+    // 全エンティティが収まるように地図のビューを自動調整
     if (entities.length) {
       var bounds = new geolonia.LngLatBounds();
       entities.forEach(function(e) {
@@ -572,6 +698,7 @@ dataPromise && dataPromise
   })
   .catch(function(err) {
     console.error('データ取得エラー:', err);
+    // 認証エラーの場合はログイン画面に戻す
     if (/Access denied|Unauthorized|token/i.test(err.message)) {
       clearAuth();
       location.href = location.pathname;
@@ -583,13 +710,24 @@ dataPromise && dataPromise
     );
   });
 
-// ── WebSocket ──
+// ============================================================
+// WebSocket リアルタイム更新
+// ============================================================
+// GeonicDB の WebSocket は、subscribe() で指定したエンティティタイプの
+// 作成（entityCreated）・更新（entityUpdated）イベントをリアルタイムに配信する。
+
 var wsDot = document.getElementById('ws-dot');
 var wsLabel = document.getElementById('ws-label');
 wsDot.classList.add('connecting');
 
+/**
+ * WebSocket メッセージからエンティティオブジェクトを構築する。
+ * メッセージ形式は SDK バージョンによって異なるため、両方に対応する。
+ */
 function parseWsEntity(msg) {
+  // 形式1: { entity: {...} } — エンティティが直接含まれる
   if (msg.entity) return msg.entity;
+  // 形式2: { entityId, entityType, data: {...} } — 属性差分のみ
   if (msg.data && msg.entityId) {
     var d = msg.data;
     var entity = { id: msg.entityId, type: msg.entityType };
@@ -610,9 +748,11 @@ function parseWsEntity(msg) {
   return null;
 }
 
+/** エンティティの作成・更新イベントを処理し、UI を更新する */
 function handleEntity(msg, isNew) {
   var entity = parseWsEntity(msg);
   if (!entity || entity.type !== ENTITY_TYPE) return;
+  // エンティティ一覧を更新（新規は追加、既存は上書き）
   if (isNew) {
     entities.push(entity);
   } else {
@@ -629,20 +769,24 @@ function handleEntity(msg, isNew) {
   addFeedItem(entity, isNew);
   showToast(getEntityName(entity));
 
+  // 更新されたエンティティの位置にカメラを移動
   var geo = findGeoProperty(entity);
   if (geo && geo.value) {
     map.flyTo({ center: geo.value.coordinates, zoom: getFlyZoom(16), duration: 1500 });
   }
 }
 
+// WebSocket イベントリスナーの登録
 db.on('entityCreated', function(msg) { handleEntity(msg, true); });
 db.on('entityUpdated', function(msg) { handleEntity(msg, false); });
 
+// エンティティタイプが選択されている場合、WebSocket で購読して接続
 if (ENTITY_TYPE !== '__none__') {
   db.subscribe({ entityTypes: [ENTITY_TYPE] });
   db.connect();
 }
 
+// 接続状態の UI 表示
 db.on('connected', function() {
   wsDot.className = 'ws-dot connected';
   wsLabel.textContent = 'LIVE';
@@ -655,6 +799,7 @@ db.on('reconnecting', function() {
   wsDot.className = 'ws-dot connecting';
   wsLabel.textContent = 'RECONNECTING';
 });
+// トークン関連のエラーはセッション切れとしてログイン画面に戻す
 db.on('error', function(err) {
   if (err && /token|unauthorized|expired|invalid/i.test(err.message)) {
     clearAuth();

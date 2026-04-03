@@ -1,15 +1,25 @@
+/**
+ * main.js — エントリポイント
+ *
+ * 認証フロー:
+ *   1. localStorage に保存済みの認証情報があれば復元
+ *   2. GeonicDB SDK を動的にロード（サーバーから /sdk/v1/geonicdb.js を取得）
+ *   3. initApp() でアプリを起動
+ *   未認証の場合はログインフォームを表示する
+ */
+
 import './style.css';
 import { getStoredAuth, clearAuth, handleLogin, handleLogout, loadGeonicDBSDK } from './auth.js';
 import { initApp } from './app.js';
 
-// グローバルに公開（HTML の onclick から参照）
 window.handleLogout = handleLogout;
 
-// ── 起動時チェック ──
 (function() {
   var auth = getStoredAuth();
+
   if (auth && auth.accessToken) {
     document.getElementById('login-overlay').classList.add('hidden');
+    // GeonicDB SDK はサーバーから動的にロードする（CDN ではなくサーバー固有のバージョンを使用）
     loadGeonicDBSDK(auth.url).then(function() {
       initApp(auth);
     }).catch(function(err) {
@@ -34,7 +44,7 @@ window.handleLogout = handleLogout;
           initApp(auth);
         });
       }).catch(function() {
-        // エラーは handleLogin 内で表示済み
+        // エラーは handleLogin 内で UI に表示済み
       });
     }
   };
