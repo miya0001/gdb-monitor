@@ -1,81 +1,64 @@
-# GeonicDB リアルタイムモニター
+# GeonicDB Monitor — サンプルアプリケーション
 
-GeonicDB に保存されたエンティティを地図上にリアルタイム表示する Web アプリケーションです。
+GeonicDB SDK を使った Vite ベースの Web アプリケーションのサンプルです。
+GeonicDB に保存されたエンティティを地図上にリアルタイム表示します。
 
-- エンティティタイプを選択して地図上に表示
-- WebSocket によるリアルタイム更新
-- Temporal API 対応（時系列データのスパークラインチャート表示）
-- Geolonia Maps によるダークテーマの地図表示
+## 利用している GeonicDB の機能
+
+| 機能 | 説明 |
+|------|------|
+| **Bearer JWT 認証** | メール + パスワードでログインし、アクセストークンとリフレッシュトークンを取得 |
+| **マルチテナント** | `NGSILD-Tenant` ヘッダーによるテナント切り替え |
+| **NGSI-LD エンティティ取得** | `GET /ngsi-ld/v1/entities` でエンティティ一覧を取得 |
+| **Temporal API** | `GET /ngsi-ld/v1/temporal/entities` で時系列データを取得し、スパークラインで可視化 |
+| **WebSocket リアルタイム通知** | `subscribe()` + `connect()` でエンティティの作成・更新をリアルタイム受信 |
+| **エンティティタイプ一覧** | `GET /ngsi-ld/v1/types` で登録済みタイプを取得 |
+
+## ファイル構成
+
+```
+index.html          HTML マークアップ
+src/
+  main.js           エントリポイント（認証フロー・起動）
+  auth.js           認証管理（ログイン、トークン保存、SDK ロード）
+  app.js            アプリ本体（地図、データ取得、WebSocket、UI）
+  style.css         スタイル
+vite.config.js      Vite 設定
+.env.example        環境変数のテンプレート
+```
 
 ## セットアップ
 
-### 1. geonic CLI のインストール
+### 1. 依存パッケージのインストール
 
 ```bash
-npm install -g @geolonia/geonicdb-cli
+npm install
 ```
 
-### 2. GeonicDB サーバーへの接続
+### 2. 環境変数の設定
 
 ```bash
-geonic config set url https://geonicdb.geolonia.com
-geonic health
+cp .env.example .env
 ```
 
-### 3. テナント管理者としてログイン
+`.env` を編集して GeonicDB サーバーの URL を設定します:
+
+```
+VITE_GEONICDB_URL=https://geonicdb.geolonia.com
+VITE_GEOLONIA_API_KEY=YOUR-API-KEY    # Geolonia Maps の API キー（任意）
+```
+
+### 3. 開発サーバーの起動
 
 ```bash
-geonic auth login
+npm run dev
 ```
 
-メールアドレスとパスワードを入力してログインします。
+ブラウザでログイン画面が表示されます。GeonicDB のメールアドレスとパスワードを入力してログインしてください。マルチテナント環境の場合はテナント名も入力します。
 
-テナントを設定します:
+## サンプルデータの作成
 
-```bash
-geonic config set service <your-tenant-name>
-```
-
-### 4. XACML ポリシーの作成
-
-API キーに紐付ける読み取り専用の XACML ポリシーを作成します。
-
-```bash
-geonic me policies create '{
-  "policyId": "ngsi-ld-readonly",
-  "target": {
-    "resources": [{"attributeId": "path", "matchValue": "/ngsi-ld/**", "matchFunction": "glob"}]
-  },
-  "rules": [
-    {"ruleId": "allow-get", "effect": "Permit", "target": {"actions": [{"attributeId": "method", "matchValue": "GET"}]}},
-    {"ruleId": "deny-others", "effect": "Deny"}
-  ]
-}'
-```
-
-- `/ngsi-ld/**` への GET のみ許可し、それ以外はすべて Deny します
-
-### 5. API キーの発行
-
-アプリで使用する DPoP 対応の API キーを発行します。
-
-```bash
-geonic me api-keys create \
-  --name "monitor-app" \
-  --origins "http://example.com" \
-  --dpop-required \
-  --policy "ngsi-ld-readonly"
-```
-
-- `--origins` — API キーの利用を許可するオリジン。デプロイ先のドメインを指定します。ローカル開発中は `"http://localhost:8080"` の代わりに `"*"` を使用してください（WAF が localhost URL を含むリクエストをブロックするため）
-- `--dpop-required` — DPoP (Demonstration of Proof-of-Possession) トークンバインディングを有効化。SDK がブラウザ側で自動的に DPoP Proof を生成するため、万が一 API キーが漏洩しても第三者は利用できません
-- `--policy` — 手順 4 で作成した XACML ポリシーを紐付けます
-
-レスポンスに含まれる `key` の値を控えておいてください（`gdb_` で始まる文字列です）。
-
-### 5. サンプルデータの作成（オプション）
-
-`location`（GeoProperty）を持つエンティティを作成すると地図上に表示されます。
+[geonic CLI](https://www.npmjs.com/package/@geolonia/geonicdb-cli) を使って、`location`（GeoProperty）を持つエンティティを作成すると地図上に表示されます。
 
 ```bash
 geonic entities create '{
@@ -90,39 +73,37 @@ geonic entities create '{
 }'
 ```
 
+## ビルド
+
+```bash
+npm run build     # dist/ にプロダクションビルドを出力
+npm run preview   # ビルド結果のプレビュー
+```
+
 ## デプロイ
 
 ### 環境変数
 
 | 変数名 | 必須 | 説明 |
 |--------|------|------|
-| `VITE_GEONICDB_URL` | Yes | GeonicDB サーバーの URL（例: `https://geonicdb.geolonia.com`） |
-| `VITE_GEONICDB_API_KEY` | Yes | 手順 5 で発行した API キー |
-| `VITE_GEONICDB_TENANT` | Yes | テナント名 |
+| `VITE_GEONICDB_URL` | Yes | GeonicDB サーバーの URL |
 | `VITE_GEOLONIA_API_KEY` | No | Geolonia Maps の API キー |
 
-### Vercel へのデプロイ
+### Vercel
 
-1. このリポジトリを GitHub にプッシュし、Vercel にインポート（フレームワーク: Vite が自動検出されます）
-2. Vercel のプロジェクト設定で上記の環境変数を設定
-3. デプロイ
-
-### ローカルで確認
-
-```bash
-cp .env.example .env
-# .env を編集して実際の値を設定
-
-npm install
-npm run dev       # 開発サーバー
-npm run build     # プロダクションビルド
-npm run preview   # ビルド結果のプレビュー
-```
+1. リポジトリを GitHub にプッシュし、Vercel にインポート
+2. 環境変数を設定
+3. デプロイ（Vite が自動検出されます）
 
 ## 使い方
 
-- トップページでエンティティタイプを選択
-- 左側の Live Feed をクリックするとエンティティにフォーカス
-- 地図上のマーカーをクリックするとプロパティ詳細をポップアップ表示
-- WebSocket 接続中はリアルタイムでエンティティの追加・更新が反映
-- 時系列データ（Temporal API）がある場合は自動的にスパークラインチャートで表示
+1. ログイン画面でメールアドレス・パスワード（・テナント名）を入力
+2. エンティティタイプを選択して「Open」
+3. 地図上のマーカーをクリックするとプロパティ詳細をポップアップ表示
+4. 左側の Live Feed をクリックするとエンティティにフォーカス
+5. WebSocket 接続中はリアルタイムでエンティティの追加・更新が反映
+6. 時系列データがある場合はスパークラインチャートで自動表示
+
+## ライセンス
+
+MIT
