@@ -148,8 +148,8 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
   padding-left: 8px;
 }
 .feed-item.active .feed-marker {
-  background: #ffffff;
-  border-color: rgba(255,255,255,0.3);
+  background: #ff1744;
+  border-color: rgba(255,23,68,0.3);
 }
 .feed-item.active .feed-name {
   color: #ffffff;
@@ -157,8 +157,8 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .feed-marker {
   width: 10px; height: 10px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.4);
-  border: 2px solid rgba(255,255,255,0.15);
+  background: #00b0ff;
+  border: 2px solid rgba(0,176,255,0.3);
   flex-shrink: 0;
 }
 .feed-info {
