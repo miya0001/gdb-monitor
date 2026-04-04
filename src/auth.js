@@ -67,7 +67,7 @@ export function refreshAuth(auth) {
   .then(function(data) {
     auth.accessToken = data.accessToken;
     auth.refreshToken = data.refreshToken;
-    auth.expiresIn = data.expiresIn || 3600;
+    auth.expiresIn = data.expiresIn;
     storeAuth(auth);
     return auth;
   });
