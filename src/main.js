@@ -63,6 +63,10 @@ window.handleLogout = handleLogout;
     });
   } else {
     document.getElementById('login-overlay').classList.remove('hidden');
+    // 前回のテナント名を復元
+    if (auth && auth.tenant) {
+      document.getElementById('login-tenant').value = auth.tenant;
+    }
     document.getElementById('login-form').onsubmit = function(e) {
       e.preventDefault();
       var email = document.getElementById('login-email').value.trim();
