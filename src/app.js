@@ -90,6 +90,19 @@ var map = new geolonia.Map({
   renderWorldCopies: false
 });
 
+
+// モバイルではアトリビューションを畳む
+if (window.innerWidth <= 768) {
+  map.on('load', function() {
+    var mapEl = document.getElementById('map');
+    if (mapEl.geoloniaMap && mapEl.geoloniaMap._controls) {
+      mapEl.geoloniaMap._controls.forEach(function(ctrl) {
+        if (ctrl._toggleAttribution) ctrl._toggleAttribution();
+      });
+    }
+  });
+}
+
 map.addControl(new geolonia.GeolocateControl({
   positionOptions: { enableHighAccuracy: true },
   trackUserLocation: true
