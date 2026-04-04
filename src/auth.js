@@ -48,6 +48,31 @@ export function loadGeonicDBSDK(url) {
 }
 
 /**
+ * リフレッシュトークンを使ってアクセストークンを更新する。
+ * ページリロード時に呼び出して常に新鮮なトークンでアプリを起動する。
+ */
+export function refreshAuth(auth) {
+  var headers = { 'Content-Type': 'application/json' };
+  if (auth.tenant) headers['NGSILD-Tenant'] = auth.tenant;
+
+  return fetch(auth.url + '/auth/refresh', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({ refreshToken: auth.refreshToken })
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('Token refresh failed');
+    return res.json();
+  })
+  .then(function(data) {
+    auth.accessToken = data.accessToken;
+    auth.refreshToken = data.refreshToken;
+    storeAuth(auth);
+    return auth;
+  });
+}
+
+/**
  * GeonicDB /auth/login API を呼び出してログイン
  *
  * レスポンス例:

@@ -9,7 +9,7 @@
  */
 
 import './style.css';
-import { getStoredAuth, clearAuth, handleLogin, handleLogout, loadGeonicDBSDK } from './auth.js';
+import { getStoredAuth, clearAuth, refreshAuth, handleLogin, handleLogout, loadGeonicDBSDK } from './auth.js';
 import { initApp } from './app.js';
 
 window.handleLogout = handleLogout;
@@ -50,9 +50,11 @@ window.handleLogout = handleLogout;
   if (auth && auth.accessToken) {
     document.getElementById('login-overlay').classList.add('hidden');
     removeLoginForm();
-    // GeonicDB SDK はサーバーから動的にロードする（CDN ではなくサーバー固有のバージョンを使用）
-    loadGeonicDBSDK(auth.url).then(function() {
-      initApp(auth);
+    // リロード時にトークンをリフレッシュしてから SDK をロード・アプリを起動
+    refreshAuth(auth).then(function(auth) {
+      return loadGeonicDBSDK(auth.url).then(function() {
+        initApp(auth);
+      });
     }).catch(function(err) {
       console.error(err);
       clearAuth();
