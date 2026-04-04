@@ -448,7 +448,7 @@ function initFeed(list) {
       '<div class="feed-marker"></div>' +
       '<div class="feed-info">' +
         '<div class="feed-name">' + name + '</div>' +
-        '<div class="feed-meta">loaded</div>' +
+        '<div class="feed-meta">' + e.id + '</div>' +
       '</div>';
     item.onclick = (function(ent) {
       return function() {
