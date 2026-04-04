@@ -87,8 +87,7 @@ var map = new geolonia.Map({
   zoom: 10,
   minZoom: 2,
   maxZoom: 16,
-  renderWorldCopies: false,
-  attributionControl: false
+  renderWorldCopies: false
 });
 
 map.addControl(new geolonia.GeolocateControl({
