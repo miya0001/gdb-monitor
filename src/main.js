@@ -51,7 +51,7 @@ window.handleLogout = handleLogout;
     document.getElementById('login-overlay').classList.add('hidden');
     removeLoginForm();
     // リロード時にトークンをリフレッシュしてから SDK をロード・アプリを起動
-    refreshAuth(auth).then(function(auth) {
+    refreshAuth(auth).then(function() {
       return loadGeonicDBSDK(auth.url).then(function() {
         initApp(auth);
       });

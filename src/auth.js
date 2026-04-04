@@ -112,7 +112,7 @@ export function handleLogin(email, password, tenant) {
       email: email,
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
-      expiresIn: data.expiresIn || 3600,
+      expiresIn: data.expiresIn,
       tenant: tenant || '',
       url: geonicdbUrl
     };
