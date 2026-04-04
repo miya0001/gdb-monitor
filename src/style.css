@@ -178,6 +178,9 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
   color: rgba(255,255,255,0.3);
   font-family: 'JetBrains Mono', monospace;
   margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── タイプ選択オーバーレイ ── */
