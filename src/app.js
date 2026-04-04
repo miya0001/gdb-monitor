@@ -920,17 +920,29 @@ if (ENTITY_TYPE !== '__none__') {
 }
 
 // 接続状態の UI 表示
+var wsStatus = wsDot.closest('.ws-status');
+
 db.on('connected', function() {
   wsDot.className = 'ws-dot connected';
   wsLabel.textContent = 'LIVE';
+  wsStatus.classList.remove('tappable');
 });
 db.on('disconnected', function() {
   wsDot.className = 'ws-dot';
   wsLabel.textContent = 'OFFLINE';
+  wsStatus.classList.add('tappable');
 });
 db.on('reconnecting', function() {
   wsDot.className = 'ws-dot connecting';
   wsLabel.textContent = 'RECONNECTING';
+  wsStatus.classList.remove('tappable');
+});
+
+// OFFLINE 表示をタップして手動再接続
+wsStatus.addEventListener('click', function() {
+  if (!wsStatus.classList.contains('tappable')) return;
+  wsStatus.classList.remove('tappable');
+  db._reconnect();
 });
 // トークン関連のエラーはセッション切れとしてログイン画面に戻す
 db.on('error', function(err) {
