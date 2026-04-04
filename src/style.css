@@ -566,6 +566,17 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 
 /* ── モバイル対応 ── */
 @media (max-width: 768px) {
+  .maplibregl-ctrl-attrib {
+    font-size: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner {
+    display: none;
+  }
+  .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+    display: block !important;
+  }
   .header {
     padding: 12px 16px 24px;
     gap: 10px;
