@@ -73,7 +73,7 @@ npm run dev
 
 ## サンプルデータの作成
 
-[geonic CLI](https://www.npmjs.com/package/@geolonia/geonicdb-cli) を使って、`location`（GeoProperty）を持つエンティティを作成すると地図上に表示されます。
+[GeonicDB CLI](https://www.npmjs.com/package/@geolonia/geonicdb-cli) を使って、`location`（GeoProperty）を持つエンティティを作成すると地図上に表示されます。
 
 ```bash
 geonic entities create '{
