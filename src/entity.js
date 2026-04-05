@@ -41,7 +41,8 @@ export function getEntityName(e) {
 export function findGeoProperty(e) {
   var geoKeys = ['location', 'position', 'geo', 'coordinates', 'place'];
   for (var i = 0; i < geoKeys.length; i++) {
-    if (e[geoKeys[i]] && e[geoKeys[i]].value) return e[geoKeys[i]];
+    var attr = e[geoKeys[i]];
+    if (attr && attr.type === 'GeoProperty' && attr.value) return attr;
   }
   var keys = Object.keys(e);
   for (var j = 0; j < keys.length; j++) {

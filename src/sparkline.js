@@ -16,7 +16,10 @@ export function buildSparkline(dataPoints, color) {
   var sorted = dataPoints.slice().sort(function(a, b) {
     return new Date(a.observedAt) - new Date(b.observedAt);
   });
-  var values = sorted.map(function(d) { return d.value; });
+  // 数値に変換できないデータポイントを除外
+  sorted = sorted.filter(function(d) { return !isNaN(Number(d.value)); });
+  if (sorted.length < 2) return '';
+  var values = sorted.map(function(d) { return Number(d.value); });
   var min = Math.min.apply(null, values);
   var max = Math.max.apply(null, values);
   var range = max - min || 1;
