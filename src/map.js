@@ -287,6 +287,15 @@ export function initMap(ctx) {
    * Temporal データがある場合はスパークライン（時系列グラフ）を表示し、
    * 通常データの場合はプロパティのキー・バリュー一覧を表示する。
    */
+  /** DOM 要素を生成するヘルパー */
+  function el(tag, style, children) {
+    var node = document.createElement(tag);
+    if (style) node.style.cssText = style;
+    if (typeof children === 'string') { node.textContent = children; }
+    else if (Array.isArray(children)) { children.forEach(function(c) { if (c) node.appendChild(c); }); }
+    return node;
+  }
+
   function openPopupForEntity(entityId) {
     var entity = ctx.entities.find(function(e) { return e.id === entityId; });
     if (!entity) return;
@@ -294,7 +303,10 @@ export function initMap(ctx) {
     if (!geo || !geo.value) return;
     var coords = geo.value.coordinates;
     var name = getEntityName(entity);
-    var contentHtml = '';
+
+    var container = el('div', 'min-width:220px');
+    container.appendChild(el('div', 'font-size:15px;font-weight:600;color:#ffffff;margin-bottom:4px', name));
+    container.appendChild(el('div', 'font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;font-family:JetBrains Mono,monospace;word-break:break-all', entityId));
 
     if (ctx.TEMPORAL && ctx.temporalRaw[entityId]) {
       // Temporal モード: 各属性の時系列データをスパークラインで表示
@@ -307,35 +319,40 @@ export function initMap(ctx) {
         if (!Array.isArray(arr) || arr.length < 2) return;
         var color = sparkColors[ci % sparkColors.length]; ci++;
         var unit = arr[0].unitCode || '';
-        contentHtml +=
-          '<div style="margin-bottom:8px">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:500">' + key + '</span>' +
-          (unit ? '<span style="color:rgba(255,255,255,0.25);font-size:9px;font-family:JetBrains Mono,monospace">' + unit + '</span>' : '') +
-          '</div>' +
-          buildSparkline(arr, color) +
-          '</div>';
+        var row = el('div', 'margin-bottom:8px');
+        var header = el('div', 'display:flex;justify-content:space-between;align-items:center;margin-bottom:2px', [
+          el('span', 'color:rgba(255,255,255,0.5);font-size:11px;font-weight:500', key),
+          unit ? el('span', 'color:rgba(255,255,255,0.25);font-size:9px;font-family:JetBrains Mono,monospace', unit) : null
+        ]);
+        row.appendChild(header);
+        // スパークライン SVG は数値データから生成されるため安全
+        var svgHtml = buildSparkline(arr, color);
+        if (svgHtml) {
+          var svgWrapper = document.createElement('div');
+          svgWrapper.innerHTML = svgHtml;
+          row.appendChild(svgWrapper);
+        }
+        container.appendChild(row);
       });
     } else {
       // 通常モード: プロパティのキー・バリュー一覧
       getDisplayProperties(entity).forEach(function(prop) {
-        var unit = prop.unit ? ' <span style="color:rgba(255,255,255,0.3)">' + prop.unit + '</span>' : '';
         var valStr = String(prop.value);
         var isLong = valStr.length > 20;
-        contentHtml +=
-          '<div style="display:flex;' + (isLong ? 'flex-direction:column;gap:2px' : 'justify-content:space-between;align-items:baseline;gap:12px') + ';padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">' +
-          '<span style="color:rgba(255,255,255,0.4);font-size:11px;flex-shrink:0;white-space:nowrap">' + prop.key + '</span>' +
-          '<span style="color:#e0f7fa;font-size:11px;font-family:JetBrains Mono,monospace;' + (isLong ? '' : 'text-align:right') + '">' + prop.value + unit + '</span>' +
-          '</div>';
+        var row = el('div', 'display:flex;' + (isLong ? 'flex-direction:column;gap:2px' : 'justify-content:space-between;align-items:baseline;gap:12px') + ';padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)');
+        row.appendChild(el('span', 'color:rgba(255,255,255,0.4);font-size:11px;flex-shrink:0;white-space:nowrap', prop.key));
+        var valEl = el('span', 'color:#e0f7fa;font-size:11px;font-family:JetBrains Mono,monospace;' + (isLong ? '' : 'text-align:right'));
+        valEl.textContent = valStr;
+        if (prop.unit) {
+          var unitEl = el('span', 'color:rgba(255,255,255,0.3)', ' ' + prop.unit);
+          valEl.appendChild(unitEl);
+        }
+        row.appendChild(valEl);
+        container.appendChild(row);
       });
     }
-    var html =
-      '<div style="min-width:220px">' +
-      '<div style="font-size:15px;font-weight:600;color:#ffffff;margin-bottom:4px">' + name + '</div>' +
-      '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;font-family:JetBrains Mono,monospace;word-break:break-all">' + entityId + '</div>' +
-      (contentHtml ? '<div>' + contentHtml + '</div>' : '') +
-      '</div>';
-    popup.setLngLat(coords).setHTML(html).addTo(map);
+
+    popup.setLngLat(coords).setDOMContent(container).addTo(map);
     selectEntity(entityId);
   }
 

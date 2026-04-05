@@ -247,6 +247,9 @@ dataPromise && dataPromise
     initFeed(entities, feedDeps);
     if (mapApi.isMapReady()) { mapApi.renderEntities(entities); }
     else { mapApi.setPendingRender(entities); }
+    // 初期データ取得完了後に WebSocket 接続を開始し、REST スナップショットとの競合を防ぐ
+    db.subscribe({ entityTypes: [ENTITY_TYPE] });
+    db.connect();
     // 全エンティティが収まるように地図のビューを自動調整
     if (entities.length) {
       var bounds = new geolonia.LngLatBounds();
@@ -347,11 +350,7 @@ function handleEntity(msg, isNew) {
 db.on('entityCreated', function(msg) { handleEntity(msg, true); });
 db.on('entityUpdated', function(msg) { handleEntity(msg, false); });
 
-// エンティティタイプが選択されている場合、WebSocket で購読して接続
-if (ENTITY_TYPE !== '__none__') {
-  db.subscribe({ entityTypes: [ENTITY_TYPE] });
-  db.connect();
-}
+// WebSocket の接続は dataPromise の then() 内で開始する（REST との競合防止）
 
 // 接続状態の UI 表示
 var wsBadge = document.getElementById('ws-badge');

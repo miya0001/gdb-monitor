@@ -2,7 +2,7 @@
  * feed.js — サイドパネルのライブフィード
  *
  * WebSocket から受信したエンティティの更新を時系列で表示するフィード。
- * 各アイテムをクリックすると地図上の該当エンティティにフライ＆ポップアップ表示する。
+ * 各アイテムをクリック（またはキーボード操作）すると地図上の該当エンティティにフライ＆ポップアップ表示する。
  */
 
 import { getEntityName, findGeoProperty, formatTime } from './entity.js';
@@ -15,6 +15,52 @@ function getFeedList() {
   return feedList;
 }
 
+/** フィード項目の DOM を組み立てる（textContent でエスケープ） */
+function buildFeedItem(name, meta, context) {
+  var item = document.createElement('div');
+  item.className = 'feed-item';
+  item.setAttribute('role', 'button');
+  item.setAttribute('tabindex', '0');
+
+  var marker = document.createElement('div');
+  marker.className = 'feed-marker';
+  item.appendChild(marker);
+
+  var info = document.createElement('div');
+  info.className = 'feed-info';
+
+  var nameEl = document.createElement('div');
+  nameEl.className = 'feed-name';
+  nameEl.textContent = name;
+  info.appendChild(nameEl);
+
+  var metaEl = document.createElement('div');
+  metaEl.className = 'feed-meta';
+  metaEl.textContent = meta;
+  info.appendChild(metaEl);
+
+  if (context) {
+    var ctxEl = document.createElement('div');
+    ctxEl.className = 'feed-context';
+    ctxEl.textContent = context;
+    info.appendChild(ctxEl);
+  }
+
+  item.appendChild(info);
+  return item;
+}
+
+/** クリックまたは Enter/Space でコールバックを呼ぶハンドラを設定 */
+function onActivate(el, callback) {
+  el.onclick = callback;
+  el.onkeydown = function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      callback();
+    }
+  };
+}
+
 /**
  * WebSocket から受信したエンティティをフィードに追加（最新が上、最大50件）。
  * @param {object} entity - NGSI-LD エンティティ
@@ -25,24 +71,22 @@ export function addFeedItem(entity, isNew, deps) {
   var list = getFeedList();
   var name = getEntityName(entity);
   var time = formatTime(new Date().toISOString());
-  var item = document.createElement('div');
-  item.className = 'feed-item' + (isNew ? ' new' : '');
+  var context = entity['@context']
+    ? (Array.isArray(entity['@context']) ? entity['@context'].join(', ') : entity['@context'])
+    : '';
+  var item = buildFeedItem(name, time, context);
   item.setAttribute('data-id', entity.id);
-  item.innerHTML =
-    '<div class="feed-marker"></div>' +
-    '<div class="feed-info">' +
-      '<div class="feed-name">' + name + '</div>' +
-      '<div class="feed-meta">' + time + '</div>' +
-      (entity['@context'] ? '<div class="feed-context">' + (Array.isArray(entity['@context']) ? entity['@context'].join(', ') : entity['@context']) + '</div>' : '') +
-    '</div>';
-  item.onclick = function() {
+  if (isNew) item.classList.add('new');
+
+  onActivate(item, function() {
     var geo = findGeoProperty(entity);
     if (geo && geo.value) {
       deps.selectEntity(entity.id);
       deps.map.flyTo({ center: geo.value.coordinates, zoom: deps.getFlyZoom(16), duration: 1200 });
       setTimeout(function() { deps.openPopupForEntity(entity.id); }, 1300);
     }
-  };
+  });
+
   list.insertBefore(item, list.firstChild);
   while (list.children.length > 50) {
     list.removeChild(list.lastChild);
@@ -60,26 +104,21 @@ export function initFeed(entities, deps) {
   list.innerHTML = '';
   entities.slice(-20).reverse().forEach(function(e) {
     var name = getEntityName(e);
-    var item = document.createElement('div');
-    item.className = 'feed-item';
+    var context = e['@context']
+      ? (Array.isArray(e['@context']) ? e['@context'].join(', ') : e['@context'])
+      : '';
+    var item = buildFeedItem(name, e.id, context);
     item.setAttribute('data-id', e.id);
-    item.innerHTML =
-      '<div class="feed-marker"></div>' +
-      '<div class="feed-info">' +
-        '<div class="feed-name">' + name + '</div>' +
-        '<div class="feed-meta">' + e.id + '</div>' +
-        (e['@context'] ? '<div class="feed-context">' + (Array.isArray(e['@context']) ? e['@context'].join(', ') : e['@context']) + '</div>' : '') +
-      '</div>';
-    item.onclick = (function(ent) {
-      return function() {
-        var geo = findGeoProperty(ent);
-        if (geo && geo.value) {
-          deps.selectEntity(ent.id);
-          deps.map.flyTo({ center: geo.value.coordinates, zoom: deps.getFlyZoom(16), duration: 1200 });
-          setTimeout(function() { deps.openPopupForEntity(ent.id); }, 1300);
-        }
-      };
-    })(e);
+
+    onActivate(item, function() {
+      var geo = findGeoProperty(e);
+      if (geo && geo.value) {
+        deps.selectEntity(e.id);
+        deps.map.flyTo({ center: geo.value.coordinates, zoom: deps.getFlyZoom(16), duration: 1200 });
+        setTimeout(function() { deps.openPopupForEntity(e.id); }, 1300);
+      }
+    });
+
     list.appendChild(item);
   });
 }
