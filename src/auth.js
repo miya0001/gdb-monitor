@@ -35,8 +35,18 @@ export function clearAuth() {
   }
 }
 
-/** ログアウト — 認証クリア後にトップへリダイレクト */
+/**
+ * ログアウト — SDK を切断し、認証クリア後にトップへリダイレクトする。
+ * SDK の db インスタンスを渡すことで tokenRefresh リスナーを含む
+ * 全接続をクリーンアップしてからリダイレクトする。
+ */
+var _dbInstance = null;
+export function setDbInstance(db) { _dbInstance = db; }
 export function handleLogout() {
+  if (_dbInstance) {
+    _dbInstance.disconnect();
+    _dbInstance = null;
+  }
   clearAuth();
   location.href = location.pathname;
 }

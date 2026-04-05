@@ -8,7 +8,7 @@
  */
 
 import './style.css';
-import { getStoredAuth, clearAuth, handleLogout, loadGeonicDBSDK, restoreSession, loginWithSDK } from './auth.js';
+import { getStoredAuth, clearAuth, handleLogout, loadGeonicDBSDK, restoreSession, loginWithSDK, setDbInstance } from './auth.js';
 import { initApp } from './app.js';
 
 window.handleLogout = handleLogout;
@@ -55,10 +55,19 @@ loadGeonicDBSDK(geonicdbUrl).then(function() {
 
   if (session) {
     // ── 保存済みトークンで復元 ──
-    // initApp 成功後にログイン UI を閉じる
-    initApp(session.db, session.auth);
-    document.getElementById('login-overlay').classList.add('hidden');
-    removeLoginForm();
+    try {
+      setDbInstance(session.db);
+      initApp(session.db, session.auth);
+      // initApp 成功後にログイン UI を閉じる
+      document.getElementById('login-overlay').classList.add('hidden');
+      removeLoginForm();
+    } catch (err) {
+      // 復元失敗時はセッションをクリアしてログイン画面に戻す
+      console.error(err);
+      clearAuth();
+      location.href = location.pathname;
+      return;
+    }
   } else {
     // ── ログインフォームを表示 ──
     document.getElementById('login-overlay').classList.remove('hidden');
@@ -81,6 +90,7 @@ loadGeonicDBSDK(geonicdbUrl).then(function() {
 
       loginWithSDK(geonicdbUrl, email, password, tenant).then(function(session) {
         // initApp 成功後にログイン UI を閉じる
+        setDbInstance(session.db);
         initApp(session.db, session.auth);
         document.getElementById('login-overlay').classList.add('hidden');
         removeLoginForm();
