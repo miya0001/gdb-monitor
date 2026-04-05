@@ -90,7 +90,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 /* ── サイドパネル ── */
 .side-panel {
   position: absolute;
-  top: 70px; left: 12px; bottom: 48px;
+  top: 70px; left: 12px; bottom: 12px;
   z-index: 10;
   width: 280px;
   display: flex;
@@ -99,6 +99,27 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
   pointer-events: none;
 }
 .side-panel > * { pointer-events: auto; }
+
+.panel-logout {
+  background: rgba(20, 20, 20, 0.92);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 10px 16px;
+  width: 100%;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+.panel-logout:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(30, 30, 30, 0.95);
+}
 
 .panel-card {
   background: rgba(20, 20, 20, 0.92);
@@ -242,6 +263,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
   position: absolute;
   bottom: 24px; right: 20px;
   z-index: 20;
+  pointer-events: none;
   background: rgba(30,30,30,0.95);
   border: 1px solid rgba(255,255,255,0.12);
   color: #ffffff;
