@@ -43,8 +43,6 @@ export function initMap(ctx) {
     minZoom: 2,
     maxZoom: 16,
     renderWorldCopies: false,
-    dragRotate: false,
-    touchPitch: false,
     pitchWithRotate: false
   });
 
@@ -70,7 +68,7 @@ export function initMap(ctx) {
   var compassBtn = document.createElement('button');
   compassBtn.className = 'compass-btn';
   compassBtn.setAttribute('aria-label', '北向きに戻す');
-  compassBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 16,14 12,11 8,14" fill="#e84130"/><polygon points="12,22 8,14 12,17 16,14" fill="#666"/></svg>';
+  compassBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,1 22,23 12,17 2,23" fill="#333"/></svg>';
   compassBtn.style.display = 'none';
   compassBtn.onclick = function() {
     map.easeTo({ bearing: 0, duration: 300 });
