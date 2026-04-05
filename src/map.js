@@ -58,13 +58,8 @@ export function initMap(ctx) {
     });
   }
 
-  map.addControl(new geolonia.GeolocateControl({
-    positionOptions: { enableHighAccuracy: true },
-    trackUserLocation: true
-  }), 'bottom-right');
-
   // コンパスボタン — 現在の回転角度を表示し、タップで北向き（0度）に戻す
-  // GeolocateControl の後に追加することで、その上に配置される
+  // 先に追加することで Geolocate の上に配置される
   var compassBtn = document.createElement('button');
   compassBtn.className = 'compass-btn';
   compassBtn.setAttribute('aria-label', '北向きに戻す');
@@ -90,7 +85,12 @@ export function initMap(ctx) {
       return container;
     },
     onRemove: function() {}
-  }, 'bottom-right');
+  }, 'top-right');
+
+  map.addControl(new geolonia.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true
+  }), 'top-right');
 
   // ユーザーが手動でズームした場合、そのレベルを記憶して flyTo で使う
   map.on('zoomend', function() {

@@ -505,6 +505,11 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 }
 .overlay-logout:hover { color: #ff5252; }
 
+/* ── 右上コントロール位置調整（ヘッダーの下に配置） ── */
+.maplibregl-ctrl-top-right {
+  top: 80px !important;
+}
+
 /* ── CompassButton（GeolocateControl と同じ白背景） ── */
 .compass-btn {
   background: #ffffff !important;
