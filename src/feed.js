@@ -82,7 +82,7 @@ export function addFeedItem(entity, isNew, deps) {
     var geo = findGeoProperty(entity);
     if (geo && geo.value) {
       deps.selectEntity(entity.id);
-      deps.map.flyTo({ center: geo.value.coordinates, zoom: deps.getFlyZoom(16), duration: 1200 });
+      deps.map.flyTo({ center: geo.value.coordinates, zoom: 16, duration: 1200 });
       setTimeout(function() { deps.openPopupForEntity(entity.id); }, 1300);
     }
   });
@@ -114,7 +114,7 @@ export function initFeed(entities, deps) {
       var geo = findGeoProperty(e);
       if (geo && geo.value) {
         deps.selectEntity(e.id);
-        deps.map.flyTo({ center: geo.value.coordinates, zoom: deps.getFlyZoom(16), duration: 1200 });
+        deps.map.flyTo({ center: geo.value.coordinates, zoom: 16, duration: 1200 });
         setTimeout(function() { deps.openPopupForEntity(e.id); }, 1300);
       }
     });
