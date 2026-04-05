@@ -16,7 +16,8 @@ window.handleLogout = handleLogout;
 
 var geonicdbUrl = import.meta.env.VITE_GEONICDB_URL;
 if (!geonicdbUrl) {
-  throw new Error('VITE_GEONICDB_URL が設定されていません。.env ファイルを確認してください。');
+  document.getElementById('login-error').textContent = 'VITE_GEONICDB_URL が設定されていません';
+  throw new Error('VITE_GEONICDB_URL is not configured');
 }
 
 // サイドパネルのモバイル用トグル
@@ -68,6 +69,8 @@ loadGeonicDBSDK(geonicdbUrl).then(function() {
 
   if (auth && auth.accessToken) {
     // ── 保存済みトークンで復元 ──
+    // 環境変数が変更された場合に備え、常に現在の URL を使用する
+    auth.url = geonicdbUrl;
     // SDK にトークンをセットすれば、期限切れ時に自動でリフレッシュされる
     var db = new GeonicDB({ baseUrl: geonicdbUrl, tenant: auth.tenant });
     db.setCredentials({
