@@ -19,7 +19,10 @@ export function formatDateTime(isoString) {
   if (!isoString) return '-';
   var d = new Date(isoString);
   var offset = d.getTimezoneOffset();
-  var tz = offset === -540 ? ' JST' : ' (UTC' + (offset <= 0 ? '+' : '-') + String(Math.abs(offset / 60)).padStart(2, '0') + ':' + String(Math.abs(offset % 60)).padStart(2, '0') + ')';
+  var abs = Math.abs(offset);
+  var hours = Math.floor(abs / 60);
+  var minutes = abs % 60;
+  var tz = offset === -540 ? ' JST' : ' (UTC' + (offset <= 0 ? '+' : '-') + String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ')';
   return d.getFullYear() + '/' +
     String(d.getMonth() + 1).padStart(2, '0') + '/' +
     String(d.getDate()).padStart(2, '0') + ' ' +
