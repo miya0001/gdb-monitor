@@ -231,18 +231,10 @@ function updateEntityCount() {
   entityCountEl.classList.add('visible');
 }
 
-/**
- * エンティティ総数を count=true&limit=0 で取得する。
- * db.request() はレスポンスヘッダーにアクセスできないため直接 fetch する。
- * ref: geolonia/geonicdb#907
- */
+/** エンティティ総数を SDK の count() で取得する */
 function fetchTotalCount(type) {
-  var url = auth.url + '/ngsi-ld/v1/entities?type=' + encodeURIComponent(type) + '&count=true&limit=0';
-  return fetch(url, {
-    headers: { 'Authorization': 'Bearer ' + auth.accessToken }
-  }).then(function(res) {
-    var count = res.headers.get('NGSILD-Results-Count');
-    if (count !== null) totalCount = parseInt(count, 10);
+  return db.count({ type: type }).then(function(count) {
+    totalCount = count;
     updateEntityCount();
   }).catch(function() {});
 }
