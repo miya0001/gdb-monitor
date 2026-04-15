@@ -231,21 +231,6 @@ function updateEntityCount() {
   entityCountEl.classList.add('visible');
 }
 
-/**
- * エンティティ総数を count=true&limit=0 で取得する。
- * db.request() はレスポンスヘッダーにアクセスできないため直接 fetch する。
- * ref: geolonia/geonicdb#907
- */
-function fetchTotalCount(type) {
-  var url = auth.url + '/ngsi-ld/v1/entities?type=' + encodeURIComponent(type) + '&count=true&limit=0';
-  return fetch(url, {
-    headers: { 'Authorization': 'Bearer ' + auth.accessToken }
-  }).then(function(res) {
-    var count = res.headers.get('NGSILD-Results-Count');
-    if (count !== null) totalCount = parseInt(count, 10);
-    updateEntityCount();
-  }).catch(function() {});
-}
 
 /** createdAt の降順でソート */
 function sortByCreatedAt(arr) {
@@ -345,7 +330,10 @@ dataPromise && dataPromise
     initFeed(feedDeps, loadNextPage);
     appendFeedItems(entities);
     updateEntityCount();
-    fetchTotalCount(ENTITY_TYPE);
+    db.count({ type: ENTITY_TYPE }).then(function(count) {
+      totalCount = count;
+      updateEntityCount();
+    }).catch(function() {});
     if (mapApi.isMapReady()) { mapApi.renderEntities(entities); }
     else { mapApi.setPendingRender(entities); }
     // 初期データ取得完了後に WebSocket 接続を開始し、REST スナップショットとの競合を防ぐ
