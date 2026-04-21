@@ -378,6 +378,10 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .bottom-sheet-body::-webkit-scrollbar { width: 4px; }
 .bottom-sheet-body::-webkit-scrollbar-track { background: transparent; }
 .bottom-sheet-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet { transition: none; }
+  .bottom-sheet-overlay { transition: none; }
+}
 .bottom-sheet-overlay {
   position: fixed;
   inset: 0;
