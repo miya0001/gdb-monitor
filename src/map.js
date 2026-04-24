@@ -277,6 +277,9 @@ export function initMap(ctx) {
         type: 'circle',
         source: 'entities',
         filter: ['!', ['has', 'point_count']],
+        layout: {
+          'circle-sort-key': ['get', 'selected']
+        },
         paint: {
           'circle-radius': ['case', ['==', ['get', 'selected'], 1], 38, 30],
           'circle-color': ['case', ['==', ['get', 'selected'], 1], '#ff1744', '#00b0ff'],
@@ -290,6 +293,9 @@ export function initMap(ctx) {
         type: 'circle',
         source: 'entities',
         filter: ['!', ['has', 'point_count']],
+        layout: {
+          'circle-sort-key': ['get', 'selected']
+        },
         paint: {
           'circle-radius': ['case', ['==', ['get', 'selected'], 1], 22, 18],
           'circle-color': ['case', ['==', ['get', 'selected'], 1], '#ff1744', '#00b0ff'],
@@ -302,6 +308,9 @@ export function initMap(ctx) {
         type: 'circle',
         source: 'entities',
         filter: ['!', ['has', 'point_count']],
+        layout: {
+          'circle-sort-key': ['get', 'selected']
+        },
         paint: {
           'circle-radius': ['case', ['==', ['get', 'selected'], 1], 10, 8],
           'circle-color': ['case', ['==', ['get', 'selected'], 1], '#ff5252', '#00e5ff'],
@@ -317,6 +326,7 @@ export function initMap(ctx) {
         source: 'entities',
         filter: ['!', ['has', 'point_count']],
         layout: {
+          'symbol-sort-key': ['get', 'selected'],
           'text-field': ['get', 'name'],
           'text-size': 11,
           'text-font': ['Noto Sans CJK JP Bold'],
