@@ -118,6 +118,7 @@ var feedDeps = {
   map: map,
   selectEntity: mapApi.selectEntity,
   getFlyZoom: mapApi.getFlyZoom,
+  sidebarPadding: mapApi.sidebarPadding,
   openPopupForEntity: mapApi.openPopupForEntity
 };
 
@@ -431,7 +432,7 @@ function handleEntity(msg, isNew) {
   // 更新されたエンティティの位置にカメラを移動
   var geo = findGeoProperty(entity);
   if (geo && geo.value) {
-    map.flyTo({ center: geo.value.coordinates, zoom: mapApi.getFlyZoom(16), duration: 1500 });
+    map.flyTo({ center: geo.value.coordinates, zoom: mapApi.getFlyZoom(16), duration: 1500, padding: { left: mapApi.sidebarPadding() } });
   }
 }
 
