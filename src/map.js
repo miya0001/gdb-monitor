@@ -116,12 +116,17 @@ export function initMap(ctx) {
     sheetEl.classList.add('open');
     sheetOverlay.classList.add('visible');
   }
+  /** デスクトップ時のサイドバー幅分の左パディングを返す */
+  function sidebarPadding() {
+    return window.innerWidth > 768 ? 300 : 0;
+  }
+
   function closeBottomSheet() {
     if (!sheetEl.classList.contains('open')) return;
     sheetEl.classList.remove('open');
     sheetOverlay.classList.remove('visible');
     selectEntity(null);
-    map.easeTo({ padding: { bottom: 0 }, duration: 300 });
+    map.easeTo({ padding: { bottom: 0, left: 0 }, duration: 300 });
   }
 
   // マップ準備完了ハンドラ
@@ -132,8 +137,11 @@ export function initMap(ctx) {
       map.setLayoutProperty('road_shield', 'visibility', 'none');
     }
     map.on('click', 'entity-points', showPopup);
+    map.on('click', 'entity-labels', showPopup);
     map.on('mouseenter', 'entity-points', function() { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'entity-points', function() { map.getCanvas().style.cursor = ''; });
+    map.on('mouseenter', 'entity-labels', function() { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'entity-labels', function() { map.getCanvas().style.cursor = ''; });
     // データ取得が地図ロードより先に完了していた場合、ここで描画する
     if (pendingRender) {
       renderEntities(pendingRender);
@@ -419,9 +427,9 @@ export function initMap(ctx) {
 
     openBottomSheet(headerEl, bodyEl);
     selectEntity(entityId);
-    // ボトムシートの高さ分パディングして、見えている地図領域の中央にポイントを配置
+    // ボトムシートの高さ・サイドバーの幅を考慮して、見えている地図領域の中央にポイントを配置
     var sheetHeight = sheetEl.offsetHeight || 0;
-    map.easeTo({ center: coords, padding: { bottom: sheetHeight }, duration: 400 });
+    map.easeTo({ center: coords, padding: { bottom: sheetHeight, left: sidebarPadding() }, duration: 400 });
   }
 
   function showPopup(ev) {
@@ -458,6 +466,7 @@ export function initMap(ctx) {
     selectEntity: selectEntity,
     openPopupForEntity: openPopupForEntity,
     getFlyZoom: getFlyZoom,
+    sidebarPadding: sidebarPadding,
     isMapReady: isMapReady,
     setPendingRender: setPendingRender,
     showError: showError
