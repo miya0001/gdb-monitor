@@ -106,7 +106,20 @@ export function initMap(ctx) {
   var sheetBody = document.getElementById('bottom-sheet-body');
   var sheetOverlay = document.getElementById('bottom-sheet-overlay');
   document.getElementById('bottom-sheet-close').addEventListener('click', closeBottomSheet);
-  sheetOverlay.addEventListener('click', closeBottomSheet);
+  // オーバーレイのクリック座標にエンティティがあればポップアップを切り替え、
+  // なければシートを閉じる
+  sheetOverlay.addEventListener('click', function(e) {
+    var rect = map.getContainer().getBoundingClientRect();
+    var features = map.queryRenderedFeatures(
+      [e.clientX - rect.left, e.clientY - rect.top],
+      { layers: ['entity-points', 'entity-labels'] }
+    );
+    if (features.length > 0) {
+      openPopupForEntity(features[0].properties.id);
+    } else {
+      closeBottomSheet();
+    }
+  });
 
   function openBottomSheet(header, body) {
     sheetHeader.innerHTML = '';
