@@ -8,13 +8,7 @@
 import { getEntityName, findGeoProperty, formatTime, formatDateTime } from './entity.js';
 
 var feedList = null;
-
-// 無限スクロール用の状態
-var feedState = {
-  deps: null,
-  onLoadMore: null,
-  loading: false
-};
+var feedDepsRef = null;
 
 /** feedList 要素を取得（初回呼び出し時にキャッシュ） */
 function getFeedList() {
@@ -87,22 +81,6 @@ function createEntityFeedItem(e, deps) {
   return item;
 }
 
-/** スクロールイベントハンドラ — 底付近で次ページの API 取得をトリガー */
-function onFeedScroll() {
-  var list = getFeedList();
-  if (feedState.loading) return;
-  if (list.scrollTop + list.clientHeight >= list.scrollHeight - 100) {
-    if (feedState.onLoadMore) {
-      feedState.loading = true;
-      feedState.onLoadMore().then(function() {
-        feedState.loading = false;
-      }).catch(function() {
-        feedState.loading = false;
-      });
-    }
-  }
-}
-
 /**
  * WebSocket から受信したエンティティをフィードに追加（最新が上）。
  * @param {object} entity - NGSI-LD エンティティ
@@ -139,23 +117,16 @@ export function addFeedItem(entity, isNew, deps) {
 export function appendFeedItems(newEntities) {
   var list = getFeedList();
   newEntities.forEach(function(e) {
-    list.appendChild(createEntityFeedItem(e, feedState.deps));
+    list.appendChild(createEntityFeedItem(e, feedDepsRef));
   });
 }
 
 /**
  * フィードを初期化する。
  * @param {object} deps - { map, selectEntity, getFlyZoom, openPopupForEntity }
- * @param {Function} onLoadMore - 次ページを取得する関数（Promise を返す）
  */
-export function initFeed(deps, onLoadMore) {
+export function initFeed(deps) {
   var list = getFeedList();
   list.innerHTML = '';
-  list.removeEventListener('scroll', onFeedScroll);
-
-  feedState.deps = deps;
-  feedState.onLoadMore = onLoadMore;
-  feedState.loading = false;
-
-  list.addEventListener('scroll', onFeedScroll);
+  feedDepsRef = deps;
 }
