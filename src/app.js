@@ -295,12 +295,9 @@ function loadNextPage() {
     });
 }
 
-/** 残りページを順次自動取得する（100件ずつ）。完了後に地図のビューを再調整。 */
+/** 残りページを順次自動取得する（100件ずつ）。地図のフィットは初期表示時のみで、追加分では再ズームしない。 */
 function autoLoadAllPages() {
-  if (!hasMore) {
-    fitBoundsToEntities();
-    return Promise.resolve();
-  }
+  if (!hasMore) return Promise.resolve();
   return loadNextPage().then(autoLoadAllPages);
 }
 
