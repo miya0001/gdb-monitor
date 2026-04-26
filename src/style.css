@@ -307,15 +307,30 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
   background: rgba(30,30,30,0.9);
   border: 1px solid rgba(255,255,255,0.12);
   color: rgba(255,255,255,0.7);
-  padding: 4px 10px;
   border-radius: 12px;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.3s;
+  overflow: hidden;
+  min-width: 140px;
 }
 .entity-count.visible { opacity: 1; }
+.entity-count-bar {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0;
+  background: rgba(76, 175, 80, 0.35);
+  transition: width 0.3s ease-out, opacity 0.4s ease-out;
+}
+.entity-count.done .entity-count-bar { opacity: 0; }
+.entity-count-text {
+  position: relative;
+  text-align: center;
+  padding: 4px 10px;
+  z-index: 1;
+}
 
 /* ── ローディングインジケーター ── */
 .loading-indicator {

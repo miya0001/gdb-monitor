@@ -214,20 +214,29 @@ function fetchTemporalEntities(type) {
 // ============================================================
 // GeonicDB はデフォルトで最大 1,000 件を返す。それ以上のデータがある場合は
 // offset パラメータで次のページを取得する。
-// サイドバーのスクロールをトリガーに追加ページを取得し、地図とフィードの
-// 表示件数を常に一致させる。
+// 初期表示後に 100 件ずつ自動で順次取得し、画面下のプログレスバーで進捗を示す。
 
 var PAGE_SIZE = 100;
 var hasMore = true;
 var paginationOffset = 0; // ページネーション専用の offset（WebSocket 追加分を含まない）
 var totalCount = null;
 var entityCountEl = document.getElementById('entity-count');
+var entityCountTextEl = document.getElementById('entity-count-text');
+var entityCountBarEl = document.getElementById('entity-count-bar');
 
-/** 画面下部の件数インジケーターを更新する */
+/** 画面下部の件数インジケーター（プログレスバー）を更新する */
 function updateEntityCount() {
-  if (!entityCountEl || totalCount === null) return;
-  entityCountEl.textContent = entities.length + ' / ' + totalCount;
+  if (!entityCountEl) return;
+  if (totalCount === null) {
+    entityCountTextEl.textContent = entities.length + '';
+    entityCountBarEl.style.width = '0%';
+  } else {
+    entityCountTextEl.textContent = entities.length + ' / ' + totalCount;
+    var pct = totalCount > 0 ? Math.min(100, (entities.length / totalCount) * 100) : 100;
+    entityCountBarEl.style.width = pct + '%';
+  }
   entityCountEl.classList.add('visible');
+  if (!hasMore) entityCountEl.classList.add('done');
 }
 
 
@@ -267,7 +276,6 @@ function fetchEntitiesPage(type, offset, limit) {
 
 /**
  * 次のページを API から取得し、entities 配列・地図・フィードを更新する。
- * サイドバーの無限スクロールから呼ばれるコールバック。
  */
 function loadNextPage() {
   if (!hasMore) return Promise.resolve();
@@ -284,9 +292,13 @@ function loadNextPage() {
       appendFeedItems(result);
       updateEntityCount();
       if (mapApi.isMapReady()) mapApi.renderEntities(entities);
-      // 追加分を含めて地図のビューを自動調整
-      fitBoundsToEntities();
     });
+}
+
+/** 残りページを順次自動取得する（100件ずつ）。地図のフィットは初期表示時のみで、追加分では再ズームしない。 */
+function autoLoadAllPages() {
+  if (!hasMore) return Promise.resolve();
+  return loadNextPage().then(autoLoadAllPages);
 }
 
 // ローディングインジケーター
@@ -331,7 +343,7 @@ dataPromise && dataPromise
       );
       return;
     }
-    initFeed(feedDeps, loadNextPage);
+    initFeed(feedDeps);
     appendFeedItems(entities);
     updateEntityCount();
     db.count({ type: ENTITY_TYPE }).then(function(count) {
@@ -344,6 +356,8 @@ dataPromise && dataPromise
     db.subscribe({ entityTypes: [ENTITY_TYPE] });
     db.connect();
     fitBoundsToEntities();
+    // 残りのページを 100 件ずつ自動で順次取得する
+    autoLoadAllPages().catch(function(err) { console.error('追加データ取得エラー:', err); });
   })
   .catch(function(err) {
     loadingEl.classList.remove('visible');
