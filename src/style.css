@@ -696,7 +696,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
     top: 8px; left: 8px; right: 8px;
     padding: 12px 12px;
   }
-  .header-type-select { font-size: 13px; position: absolute; left: 50%; transform: translateX(-50%); margin: 0; }
+  .header-type-select { font-size: 13px; position: absolute; left: 50%; transform: translateX(-50%); margin: 0; max-width: calc(100% - 220px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .header-sep { display: none; }
 
   .panel-toggle {
