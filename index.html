@@ -113,8 +113,14 @@
   <!-- アプリケーション -->
   <script type="module" src="/src/main.js"></script>
   <script>
+    // 旧 sw.js を登録済みのブラウザから unregister する。
+    // pulse は SDK の 304 経路 + ブラウザ HTTP cache だけで素直に動かすため
+    // SW を撤去した。SW が居続けると SDK の挙動が DevTools 上でわかりにくくなり、
+    // サンプル本来の役割 (SDK の API がそのまま読める) に反するため。
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+      });
     }
   </script>
 </body>
