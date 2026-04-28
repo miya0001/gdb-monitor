@@ -117,10 +117,23 @@
     // pulse は SDK の 304 経路 + ブラウザ HTTP cache だけで素直に動かすため
     // SW を撤去した。SW が居続けると SDK の挙動が DevTools 上でわかりにくくなり、
     // サンプル本来の役割 (SDK の API がそのまま読める) に反するため。
+    //
+    // geolonia.github.io は複数アプリを host する shared origin のため、
+    // getRegistrations() が同一オリジンの全 registration を返す挙動を踏まえ、
+    // pulse の scope (/geonicdb-pulse/...) に該当する registration のみを
+    // unregister する。
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(r) { r.unregister(); });
-      });
+      var appScopePrefix = new URL('./', location.href).href;
+      navigator.serviceWorker.getRegistrations()
+        .then(function(regs) {
+          var targets = regs.filter(function(r) {
+            return r.scope.startsWith(appScopePrefix);
+          });
+          return Promise.allSettled(targets.map(function(r) { return r.unregister(); }));
+        })
+        .catch(function(err) {
+          console.warn('Service Worker unregister failed:', err);
+        });
     }
   </script>
 </body>
